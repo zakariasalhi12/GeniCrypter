@@ -1,3 +1,6 @@
+mod config;
+
 fn main() {
-    println!("Hello, world!");
+    // config::Config::new(target_binary_path, output_path, added_size, delay)
+    todo!()
 }
