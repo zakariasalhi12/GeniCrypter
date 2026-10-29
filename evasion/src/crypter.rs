@@ -2,10 +2,6 @@ pub fn encrypt()  {
     todo!()
 }
 
-pub fn decrypt() {
-    todo!()
-}
-
 pub fn target_system() {
     todo!()
 }
