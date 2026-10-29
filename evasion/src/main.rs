@@ -1,4 +1,7 @@
 mod config;
+mod parser;
+mod crypter;
+mod stub;
 
 // $> evasion --help
 // Evasion Program Usage:
@@ -15,6 +18,5 @@ mod config;
 
 
 fn main() {
-    // config::Config::new(target_binary_path, output_path, added_size, delay)
-    todo!()
+    parser::parser();
 }
