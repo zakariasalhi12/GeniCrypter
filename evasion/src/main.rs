@@ -12,7 +12,7 @@ mod stub;
 // $> evasion --encrypt target.exe --output obfuscated.exe --add-size 101 --delay 101
 // Encryption is successful! Encrypted binary saved as "obfuscated.exe".
 // $> obfuscated.exe
-// [INFO] Execution delayed by 101 seconds...
+// [INFO] ecuExtion delayed by 101 seconds...
 // [INFO] Binary decrypted successfully.
 // [INFO] Target program executed.
 
