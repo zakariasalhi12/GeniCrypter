@@ -29,17 +29,6 @@ impl Stub {
         }
     }
 
-    pub fn vm_detection(stub: &Stub) {
-        let is_vm = false;
-
-        if is_vm {
-            if stub.verbose {
-                println!("[INFO] VM detected. Exiting...");
-            }
-            std::process::exit(0);
-        }
-    }
-
     pub fn decrypt(stub: &Stub) {
         if stub.verbose {
             println!("[INFO] Binary decrypted successfully.");
@@ -61,19 +50,29 @@ impl Stub {
         }
     }
 
+    pub fn vm_detection(stub: &Stub) -> Boolean {
+        // WARNING: This is NOT a reliable standalone VM/sandbox check.
+        // The crate's heuristics can be outdated, bypassed, or produce
+        // false negatives on modern or custom-configured VMs.
+        antilysis::detected().unwrap_or(false)
+    }
+
     pub fn anti_debug() -> bool {
-        match anti_debug::is_debugger_present() {
-            Ok(true) => true,
-            Ok(false) => false,
-            Err(_) => false,
-        }
+        // WARNING: This is NOT a reliable standalone anti-debug check.
+        // The detection can be bypassed, hooked, or neutralized by modern
+        // debuggers and analysts. Use it only as a first layer of defense,
+        antidebug::is_debugger_present().unwrap_or(false)
     }
 }
 
 fn main() {
     // Check if the program is running in a VM
-    if vm_detection {
-        Stub::vm_detection(&stub);
+    if Stub::vm_detection(&stub) {
+        if stub.verbose {
+            println!("[INFO] VM detected. Exiting...");
+        }
+        // todo instead of exiting , we can make change the program behavior
+        std::process::exit(0);
     }
 
     // Check if the program is being debugged
@@ -81,6 +80,7 @@ fn main() {
         if stub.verbose {
             println!("[INFO] Debugger detected. Exiting...");
         }
+        // todo instead of exiting , we can make change the program behavior
         std::process::exit(0);
     }
 

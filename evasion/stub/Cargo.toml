@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 anti-debug = "0.3.0"
+antilysis = "0.2.2"
