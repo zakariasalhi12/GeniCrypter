@@ -50,17 +50,21 @@ impl Stub {
         }
     }
 
-    pub fn vm_detection(stub: &Stub) -> Boolean {
+    pub fn vm_detection(stub: &Stub) -> bool {
+        // =====================================================================
         // WARNING: This is NOT a reliable standalone VM/sandbox check.
         // The crate's heuristics can be outdated, bypassed, or produce
         // false negatives on modern or custom-configured VMs.
+        // =====================================================================
         antilysis::detected().unwrap_or(false)
     }
 
     pub fn anti_debug() -> bool {
+        // =====================================================================
         // WARNING: This is NOT a reliable standalone anti-debug check.
         // The detection can be bypassed, hooked, or neutralized by modern
-        // debuggers and analysts. Use it only as a first layer of defense,
+        // debuggers and analysts. Use it only as a first layer of defense
+        // =====================================================================
         antidebug::is_debugger_present().unwrap_or(false)
     }
 }
