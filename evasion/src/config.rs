@@ -9,18 +9,18 @@ pub enum System {
 
 pub struct Config {
     target_binary_path: String,
-    output_path: String,
-    added_size: u32,
+    output: String,
+    padding: u32,
     delay: u32,
     system: System,
 }
 
 impl Config {
-    pub fn new(target_binary_path: String, output_path: String, added_size: u32, delay: u32) -> Config {
+    pub fn new(target_binary_path: String, output: String, padding: u32, delay: u32) -> Config {
         Config {
             target_binary_path,
-            output_path,
-            added_size,
+            output,
+            padding,
             delay,
             system: System::UNKNOWN 
         }

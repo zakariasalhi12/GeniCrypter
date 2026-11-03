@@ -2,19 +2,19 @@ use std::{env::{Args, args}, os};
 
 pub struct Stub  {
     encrepted_exe : String,
-    output_path : String,
+    output : String,
     delay : u32,
-    added_size: u32,
+    padding: u32,
     key : String
 }
 
 impl Stub {
-    pub fn new(encrepted_exe : String , output_path : String, delay : u32 ,added_size : u32 , key: String) -> Stub {
+    pub fn new(encrepted_exe : String , output : String, delay : u32 ,padding : u32 , key: String) -> Stub {
         Stub {
             encrepted_exe,
-            output_path,
+            output,
             delay,
-            added_size,
+            padding,
             key
         }
     }
