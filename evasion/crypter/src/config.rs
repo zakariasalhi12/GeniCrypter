@@ -10,13 +10,13 @@ pub enum System {
 pub struct Config {
     target_binary_path: String,
     output: String,
-    padding: u32,
-    delay: u32,
+    padding: u64,
+    delay: u64,
     system: System,
 }
 
 impl Config {
-    pub fn new(target_binary_path: String, output: String, padding: u32, delay: u32) -> Config {
+    pub fn new(target_binary_path: String, output: String, padding: u64, delay: u64) -> Config {
         Config {
             target_binary_path,
             output,
