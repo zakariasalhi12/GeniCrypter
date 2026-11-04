@@ -40,12 +40,42 @@ impl Crypter {
 
     fn parse_args() -> Result<Crypter, String> {
         let args = parser::parser();
-    
-        let target_binary = args.target_binary
-            .ok_or("Target binary is required.")?;
-    
+        let max_file_size_mb = lib::get_env_u64("MAX_FILE_SIZE_MB", 200);
+        let max_delay_seconds = lib::get_env_u64("MAX_DELAY_SECONDS", 3000);
+        let max_padding_mb = lib::get_env_u64("MAX_PADDING_MB", 200);
+
+        // Check padding size
+        if args.padding > max_padding_mb {
+            return Err(format!(
+                "Padding size exceeds the maximum allowed size of {} MB.",
+                max_padding_mb
+            ));
+        }
+
+        // Check delay
+        if args.delay > max_delay_seconds {
+            return Err(format!(
+                "Delay exceeds the maximum allowed delay of {} seconds.",
+                max_delay_seconds
+            ));
+        }
+
+        // Check file size
+        let target_binary = args.target_binary.ok_or("Target binary is required.")?;
+        let metadata = std::fs::metadata(&target_binary).map_err(|e| format!("Failed to read target binary metadata: {}", e))?;
+        let file_size_mb = metadata.len() / (1024 * 1024);
+
+        if file_size_mb > max_file_size_mb {
+            return Err(format!(
+                "Target binary size exceeds the maximum allowed size of {} MB.",
+                max_file_size_mb
+            ));
+        }
+
+        // Check if the target binary is a valid PE file
         lib::validate_pe(&target_binary)?;
     
+        // Determine output path
         let output = args.output.unwrap_or_else(|| {
             let mut output_path = target_binary.clone();
         
@@ -70,6 +100,7 @@ impl Crypter {
 
     fn encrypt(&self)  {
         println!("[INFO] Encryption process completed successfully.");
+    
     }
 
     fn compress(&self) {
@@ -82,6 +113,7 @@ impl Crypter {
 }
 
 fn main() {
+    dotenvy::dotenv().ok();
     let crypter = match Crypter::parse_args() {
         Ok(crypter) => crypter,
         Err(err) => {
