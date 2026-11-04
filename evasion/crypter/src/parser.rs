@@ -5,7 +5,7 @@ use std::path::PathBuf;
 #[command(
     name = "Evasion",
     version,
-    about = "A binary crypter with configurable file size and execution delay options.",
+    about = "A Windows binary crypter featuring configurable file size, anti-debugging, virtual machine detection, and execution delay options.",
     disable_help_flag = true,
     disable_help_subcommand = true
 )]
@@ -23,15 +23,15 @@ pub struct Args {
     pub add_size: u64,
 
     // Processing delay in seconds
-    #[arg(short = 'd', long, value_name = "seconds", default_value_t = 101)]
+    #[arg(short = 'd', long, value_name = "seconds", default_value_t = 60)]
     pub delay: u64,
 
     // verbose output
-    #[arg(short = 'v', long, value_name = "verbose", default_value_t = true)]
+    #[arg(short = 'v', long, value_name = "verbose", default_value_t = false)]
     pub verbose: bool,
 
     // Enable or disable VM detection
-    #[arg(short = 'm', long, value_name = "vm-detection", default_value_t = true)]
+    #[arg(short = 'm', long, value_name = "vm-detection", default_value_t = false)]
     pub vm_detection: bool,
 }
 

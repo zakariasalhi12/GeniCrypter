@@ -17,6 +17,40 @@ mod stub;
 // [INFO] Target program executed.
 
 
+struct Crypter {
+    target_binary: String,
+    output: String,
+    padding: u64,
+    delay: u64,
+    verbose: bool,
+    vm_detection: bool,
+}
+
+impl Crypter {
+    fn new(target_binary: String, output: String, padding: u64, delay: u64, verbose: bool, vm_detection: bool) -> Crypter {
+        Crypter {
+            target_binary,
+            output,
+            padding,
+            delay,
+            verbose,
+            vm_detection,
+        }
+    }
+
+    fn encrypt(&self)  {
+        todo!()
+    }
+
+    fn compress(&self) {
+        todo!()
+    }
+
+    fn add_padding(&self) {
+        todo!()
+    }
+}
+
 fn main() {
     parser::parser();
 }

