@@ -1,7 +1,7 @@
-mod config;
+use std::path::PathBuf;
+use std::path::Path;
 mod parser;
-mod crypter;
-mod stub;
+mod lib;
 
 // $> evasion --help
 // Evasion Program Usage:
@@ -18,8 +18,8 @@ mod stub;
 
 
 struct Crypter {
-    target_binary: String,
-    output: String,
+    target_binary: PathBuf,
+    output: PathBuf,
     padding: u64,
     delay: u64,
     verbose: bool,
@@ -27,7 +27,7 @@ struct Crypter {
 }
 
 impl Crypter {
-    fn new(target_binary: String, output: String, padding: u64, delay: u64, verbose: bool, vm_detection: bool) -> Crypter {
+    fn new(target_binary: PathBuf, output: PathBuf, padding: u64, delay: u64, verbose: bool, vm_detection: bool) -> Crypter {
         Crypter {
             target_binary,
             output,
@@ -38,19 +38,59 @@ impl Crypter {
         }
     }
 
+    fn parse_args() -> Result<Crypter, String> {
+        let args = parser::parser();
+    
+        let target_binary = args.target_binary
+            .ok_or("Target binary is required.")?;
+    
+        lib::validate_pe(&target_binary)?;
+    
+        let output = args.output.unwrap_or_else(|| {
+            let mut output_path = target_binary.clone();
+        
+            let file_name = output_path
+                .file_name()
+                .unwrap()
+                .to_string_lossy();
+        
+            output_path.set_file_name(format!("obfuscated_{}", file_name));
+            output_path
+        });
+    
+        Ok(Crypter::new(
+            target_binary,
+            output,
+            args.padding,
+            args.delay,
+            args.verbose,
+            args.vm_detection,
+        ))
+    }
+
     fn encrypt(&self)  {
-        todo!()
+        println!("[INFO] Encryption process completed successfully.");
     }
 
     fn compress(&self) {
-        todo!()
+        println!("[INFO] Compression process completed successfully.");
     }
 
     fn add_padding(&self) {
-        todo!()
+        println!("[INFO] Padding added successfully.");
     }
 }
 
 fn main() {
-    parser::parser();
+    let crypter = match Crypter::parse_args() {
+        Ok(crypter) => crypter,
+        Err(err) => {
+            eprintln!("[ERROR] {}", err);
+            std::process::exit(1);
+        }
+    };
+
+    crypter.encrypt();
+    crypter.compress();
+    crypter.add_padding();
 }

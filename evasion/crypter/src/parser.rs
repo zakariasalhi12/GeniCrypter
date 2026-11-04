@@ -11,16 +11,16 @@ use std::path::PathBuf;
 )]
 pub struct Args {
     // Target binary to process
-    #[arg(value_name = "target-binary")]
-    pub encrypt: Option<PathBuf>,
+    #[arg(short = 't', long , value_name = "target-binary")]
+    pub target_binary: Option<PathBuf>,
 
     // Output file path
-    #[arg(short = 'o', long, value_name = "output-binary", default_value = "result.exe")]
-    pub output: PathBuf,
+    #[arg(short = 'o', long, value_name = "output-binary")]
+    pub output: Option<PathBuf>,
 
     // Increase output size in MiB
     #[arg(short = 's', long, value_name = "size-in-mb", default_value_t = 0)]
-    pub add_size: u64,
+    pub padding: u64,
 
     // Processing delay in seconds
     #[arg(short = 'd', long, value_name = "seconds", default_value_t = 60)]
@@ -38,7 +38,7 @@ pub struct Args {
 pub fn parser() -> Args {
     let args = Args::parse();
 
-    if args.encrypt.is_none() {
+    if args.target_binary.is_none() {
         let mut command = Args::command();
         command.print_help().unwrap();
         println!();
