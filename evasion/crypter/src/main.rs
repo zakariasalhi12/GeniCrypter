@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::path::Path;
 mod parser;
 mod lib;
 
@@ -46,18 +45,12 @@ impl Crypter {
 
         // Check padding size
         if args.padding > max_padding_mb {
-            return Err(format!(
-                "Padding size exceeds the maximum allowed size of {} MB.",
-                max_padding_mb
-            ));
+            return Err(format!("Padding size exceeds the maximum allowed size of {} MB.",max_padding_mb));
         }
 
         // Check delay
         if args.delay > max_delay_seconds {
-            return Err(format!(
-                "Delay exceeds the maximum allowed delay of {} seconds.",
-                max_delay_seconds
-            ));
+            return Err(format!("Delay exceeds the maximum allowed delay of {} seconds.",max_delay_seconds));
         }
 
         // Check file size
@@ -66,10 +59,7 @@ impl Crypter {
         let file_size_mb = metadata.len() / (1024 * 1024);
 
         if file_size_mb > max_file_size_mb {
-            return Err(format!(
-                "Target binary size exceeds the maximum allowed size of {} MB.",
-                max_file_size_mb
-            ));
+            return Err(format!("Target binary size exceeds the maximum allowed size of {} MB.", max_file_size_mb));
         }
 
         // Check if the target binary is a valid PE file
@@ -78,12 +68,7 @@ impl Crypter {
         // Determine output path
         let output = args.output.unwrap_or_else(|| {
             let mut output_path = target_binary.clone();
-        
-            let file_name = output_path
-                .file_name()
-                .unwrap()
-                .to_string_lossy();
-        
+            let file_name = output_path.file_name().unwrap().to_string_lossy();
             output_path.set_file_name(format!("obfuscated_{}", file_name));
             output_path
         });
