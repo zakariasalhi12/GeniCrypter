@@ -35,10 +35,16 @@ fn cleanup_embedded_files() -> Result<(), std::io::Error> {
 }
 
 fn vm_detected() -> bool {
+    // WARNING: unreliable standalone VM/sandbox check.
+    // The crate's heuristics can be outdated, bypassed, or produce
+    // false negatives on modern or custom-configured VMs.
     antilysis::detected().unwrap_or(false)
 }
 
 fn debugger_detected() -> bool {
+    // WARNING: unreliable standalone anti-debug check.
+    // The crate's heuristics can be outdated, bypassed, or produce
+    // false negatives on modern or custom-configured VMs.
     anti_debug::is_debugger_present().unwrap_or(false)
 }
 
