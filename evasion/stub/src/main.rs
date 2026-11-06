@@ -39,7 +39,7 @@ fn vm_detected() -> bool {
 }
 
 fn debugger_detected() -> bool {
-    antidebug::is_debugger_present().unwrap_or(false)
+    anti_debug::is_debugger_present().unwrap_or(false)
 }
 
 fn decompress() -> Result<Vec<u8>, std::io::Error> {
