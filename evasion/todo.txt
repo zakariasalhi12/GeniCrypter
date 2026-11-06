@@ -1,0 +1,9 @@
+- Pull the dec key from a c2 server [optional and better for sec]
+- Change Behavior in case of (vm , debugging)
+- In delay instead of waiting make a timer and start another behavior so the program don't look suspicious 
+- Add obfuscation in the compile time to avoid static analysis
+- Add a standalone Runner so the stub don't relay on the crypter
+- Add more detection techniques for the vm detection and anti debugging function
+- Make sure that the target file size smaller than 200mg so the llvm don't fail in allocation
+- Add depth option so the stub can hold it own stub for more sec
+- Write my own manual memory mapping and use api hooking to avoid EDR or just use https://lib.rs/crates/manualmap
