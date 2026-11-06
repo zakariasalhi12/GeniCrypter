@@ -1,4 +1,4 @@
-// mod generated;
+mod generated;
 mod logger;
 use generated::{KEY, NONCE, DELAY_SECS, VERBOSE, VM_DETECTION};
 use std::fs;
