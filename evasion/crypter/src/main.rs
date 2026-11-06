@@ -96,6 +96,14 @@ impl Crypter {
         Ok(())
     }
 
+    fn cleanup(&self, stub_dir: &Path) -> Result<(), String> {
+        std::fs::remove_file(stub_dir.join("payload.enc")).map_err(|e| format!("remove payload.enc: {}", e))?;
+        std::fs::remove_file(stub_dir.join("padding.bin")).map_err(|e| format!("remove padding.bin: {}", e))?;
+        std::fs::remove_file(stub_dir.join("src/generated.rs")).map_err(|e| format!("remove generated.rs: {}", e))?;
+        pkg::log_info("Cleanup completed successfully.");
+        Ok(())
+    }
+
     fn compress(&mut self) -> Result<(), String> {
         let ciphertext = self.payload.take().ok_or("compress before encrypt")?;
         let compressed = zstd::encode_all(&ciphertext[..], 10).map_err(|e| format!("zstd compress failed: {}", e))?;
@@ -172,6 +180,7 @@ fn run(crypter: &mut Crypter, stub_dir: &Path) -> Result<(), String> {
 
     let built = build_stub(stub_dir)?;
     std::fs::copy(&built, &crypter.output).map_err(|e| format!("copy output failed: {}", e))?;
+    crypter.cleanup(stub_dir)?;
     Ok(())
 }
 
