@@ -1,13 +1,14 @@
 use colored::Colorize;
+use obfstr::obfstr;
 
 pub fn log_ok(msg: &str) {
-    println!("{} {}", "[+]".green(), msg);
+    println!("{} {}", obfstr!("[+]").green(), msg);
 }
 
 pub fn log_info(msg: &str) {
-    println!("{} {}", "[*]".yellow(), msg);
+    println!("{} {}", obfstr!("[*]").yellow(), msg);
 }
 
 pub fn log_error(msg: &str) {
-    println!("{} {}", "[-]".red(), msg);
+    println!("{} {}", obfstr!("[-]").red(), msg);
 }

