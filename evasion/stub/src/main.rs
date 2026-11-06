@@ -3,6 +3,7 @@ mod logger;
 use generated::{KEY, NONCE, DELAY_SECS, VERBOSE, VM_DETECTION};
 use std::fs;
 use std::error::Error;
+use::std::time::{Duration, Instant};
 use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Key, Nonce,
