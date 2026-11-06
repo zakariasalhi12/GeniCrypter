@@ -7,6 +7,7 @@ use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Key, Nonce,
 };
+use std::convert::TryInto;
 
 // Embedded at compile time by the crypter.
 static ENCRYPTED: &[u8] = include_bytes!("../payload.enc");
@@ -54,9 +55,10 @@ fn decompress() -> Result<Vec<u8>, std::io::Error> {
 }
 
 fn decrypt(ciphertext: &[u8]) -> Result<Vec<u8>, aes_gcm::Error> {
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&KEY));
-    let plaintext = cipher.decrypt(Nonce::from_slice(&NONCE),ciphertext,)?;
-
+    let key: &Key<Aes256Gcm> = (&KEY).try_into().map_err(|_| "invalid key length")?;
+    let cipher = Aes256Gcm::new(key);
+    let nonce: &Nonce<_> = (&NONCE).try_into().map_err(|_| "invalid nonce length")?;
+    let plaintext = cipher.decrypt(nonce, ciphertext)?;
     if VERBOSE {
         logger::log_info("Binary decrypted successfully.");
     }
@@ -119,7 +121,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
 fn main() {
     if let Err(error) = run() {
-        if (VERBOSE) {
+        if VERBOSE {
             logger::log_error(&format!("Error: {error}"));
         }
         std::process::exit(1);
