@@ -54,11 +54,12 @@ fn decompress() -> Result<Vec<u8>, std::io::Error> {
     zstd::decode_all(ENCRYPTED)
 }
 
-fn decrypt(ciphertext: &[u8]) -> Result<Vec<u8>, aes_gcm::Error> {
+fn decrypt(ciphertext: &[u8]) -> Result<Vec<u8>, String> {
     let key: &Key<Aes256Gcm> = (&KEY).try_into().map_err(|_| "invalid key length")?;
     let cipher = Aes256Gcm::new(key);
     let nonce: &Nonce<_> = (&NONCE).try_into().map_err(|_| "invalid nonce length")?;
-    let plaintext = cipher.decrypt(nonce, ciphertext)?;
+    let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| format!("AES-GCM decrypt failed: {:?}", e))?;
+    
     if VERBOSE {
         logger::log_info("Binary decrypted successfully.");
     }
