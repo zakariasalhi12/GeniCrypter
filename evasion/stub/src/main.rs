@@ -1,3 +1,4 @@
+// #![windows_subsystem = "windows"] // Uncomment to link as a GUI-subsystem PE (no console window) 
 mod generated;
 mod logger;
 use generated::{KEY, NONCE, DELAY_SECS, VERBOSE, VM_DETECTION};
