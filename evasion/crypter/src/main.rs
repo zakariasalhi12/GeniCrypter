@@ -41,20 +41,20 @@ impl Crypter {
 
     fn parse_args() -> Result<Crypter, String> {
         let args = parser::parser()?;
-        let max_file_size_mb = pkg::get_env_u64("MAX_FILE_SIZE_MB", 300)?;
+        let max_file_size_mb = pkg::get_env_u64("MAX_FILE_SIZE_MB", 350)?;
         let max_delay_seconds = pkg::get_env_u64("MAX_DELAY_SECONDS", 3000)?;
         let max_padding_mb = pkg::get_env_u64("MAX_PADDING_MB", 250)?;
 
-        if max_file_size_mb >= 300 {
-            return Err("MAX_FILE_SIZE_MB cannot exceed 200 MB.".to_string());
+        if max_file_size_mb >= 350 {
+            return Err("MAX_FILE_SIZE_MB cannot exceed 350 MB.".to_string());
         }
 
         if max_delay_seconds > 3000 {
-            return Err("MAX_DELAY_SECONDS cannot exceed 500 seconds.".to_string());
+            return Err("MAX_DELAY_SECONDS cannot exceed 3000 seconds.".to_string());
         }
 
         if max_padding_mb >= 250 {
-            return Err("MAX_PADDING_MB cannot exceed 200 MB.".to_string());
+            return Err("MAX_PADDING_MB cannot exceed 250 MB.".to_string());
         }
 
         if args.padding > max_padding_mb {
