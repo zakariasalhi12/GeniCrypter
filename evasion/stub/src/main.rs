@@ -10,7 +10,7 @@ use aes_gcm::{
 use std::convert::TryInto;
 use busywork::{BusyWork, Categories, Intensity};
 use obfstr::obfstr;
-use rand::Rng;
+use rand::RngExt;
 
 
 // Embedded at compile time by the crypter.
@@ -107,7 +107,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 fn main() {
     if let Err(error) = run() {
         if VERBOSE {
-            logger::log_error((&format!("Error: {error}")));
+            logger::log_error(&format!("Error: {error}"));
         }
         std::process::exit(1);
     }
