@@ -65,9 +65,9 @@ impl Crypter {
         }
 
         let target_binary = args.target_binary.ok_or("Target binary is required.")?;
-        let metadata = std::fs::metadata(&target_binary)
-            .map_err(|e| format!("Failed to read target binary metadata: {}", e))?;
+        let metadata = std::fs::metadata(&target_binary).map_err(|e| format!("Failed to read target binary metadata: {}", e))?;
         let file_size_mb = metadata.len() / (1024 * 1024);
+        
         if file_size_mb > max_file_size_mb {
             return Err(format!("Target binary size exceeds the maximum allowed size of {} MB.", max_file_size_mb));
         }
