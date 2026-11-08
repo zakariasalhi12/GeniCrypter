@@ -25,8 +25,13 @@ A Rust-based PE crypter that encrypts a Windows x64 executable, embeds it into a
 - **In-memory execution** — the stub decrypts the target and maps it into its own process via `maple-rs`. No temporary file is written to disk.
 - **Configurable execution delay** — the stub can wait before running the target. The delay is filled with real CPU/memory work (`busywork`) instead of a static `sleep`, to break the "idle then act" behavioral signature.
 - **Randomized detection-response delay** — when a VM or debugger is detected, the stub performs 60–120 seconds of benign work before exiting, instead of quitting immediately.
-- **Anti-debugging** — uses the `anti_debug` crate (`IsDebuggerPresent`, `CheckRemoteDebuggerPresent`, etc.). See the warning in the stub code.
-- **Anti-VM / anti-sandbox** — uses the `antilysis` crate. See the warning in the stub code.
+- **Analysis environment detection** — uses the `antilysis` crate, which performs a single combined check covering:
+  - **Debuggers** — via `IsDebuggerPresent`, `CheckRemoteDebuggerPresent`, and the `\\.\NTICE` device (SoftICE); plus scanning the process list for `x64dbg.exe`, `WinDbg.exe`, `ollydbg.exe`, `gdb.exe`, `procdump.exe`, and others.
+  - **Suspicious analysis processes** — `Wireshark.exe`, `procexp64.exe`, `Procmon64.exe`, `pestudio.exe`, `pe-sieve64.exe`, `hollows_hunter32.exe`, `Moneta64.exe`, `fakenet.exe`, `tcpview.exe`, `dumpcap.exe`, and others.
+  - **VM guest processes** — `VBoxTray.exe`, `VBoxService.exe`, `vmtoolsd.exe`, `VMwareUser.exe`, `qemu-ga.exe`, `vdagent.exe`, `xenservice.exe`, and others.
+  - **VM driver files** — VMware (`vmmouse.sys`, `vmhgfs.dll`, `vmGuestLib.dll`, ...) and VirtualBox (`VBoxMouse.sys`, `VBoxGuest.sys`, `VBoxSF.sys`, ...) under C:\Windows\System32\Drivers\.
+  - **VM MAC address prefixes** — `00:05:69`, `00:0C:29`, `00:1C:14`, `00:50:56` (VMware) and `08:00:27` (VirtualBox).
+  - **Sandbox artifacts** — hostname and Windows version heuristics.
 - **String obfuscation** — log messages and other literals are obfuscated at compile time with `obfstr`, so they do not appear in plaintext under `strings`.
 - **File size padding** — optional `--add-size` injects random bytes into the stub at compile time, so the binary carries no zero-filled or high-entropy "overlay" block.
 - **Optional GUI subsystem** — the stub can be linked as a GUI PE to avoid the console window flash when the target is a GUI application.
@@ -81,14 +86,14 @@ evasion/
 
 1. `crypter` reads the target PE and encrypts it with AES-256-GCM.
 2. The ciphertext is zstd-compressed.
-3. `crypter` writes `stub/payload.enc`, `stub/padding.bin`, and `stub/src/generated.rs` (`KEY`, `NONCE`, `DELAY_SECS`, `VERBOSE`, `VM_DETECTION`).
+3. `crypter` writes `stub/payload.enc`, `stub/padding.bin`, and `stub/src/generated.rs` (`KEY`, `NONCE`, `DELAY_SECS`, `VERBOSE`, `ANALYSIS_DETECTION`).
 4. `crypter` runs `cargo build --release` inside `stub/`. `include_bytes!` and `mod generated` pick up the real data and constants.
 5. The built `stub.exe` is copied to the user-specified `--output` path.
 6. Intermediate files in `stub/` are removed.
 
 ### Runtime flow (inside the generated stub)
 
-1. Optionally run `busywork` if a VM or debugger is detected, then exit.
+1. Optionally run `busywork` if a analysis is detected, then exit.
 2. Optionally wait `DELAY_SECS`, filled with `busywork`.
 3. Decompress `payload.enc`.
 4. Decrypt the ciphertext with `KEY` / `NONCE`.
@@ -133,7 +138,7 @@ evasion/
     -s, --padding <size-in-mb>           [default: 0]
     -d, --delay <seconds>                [default: 60]
     -v, --verbose                        
-    -m, --vm-detection                   
+    -a, --anti-analysis                   
     -V, --version                        Print version
 ```
 
@@ -157,7 +162,7 @@ The crypter creates the following files in **stub/** before compiling it, and re
 |---|---|
 | ``payload.enc`` | zstd-compressed, AES-256-GCM-encrypted target PE. Embedded by ``include_bytes!``. |
 | ``padding.bin`` | Random bytes of size ``--add-size`` MiB. Embedded by ``include_bytes!`` to inflate the binary. |
-| ``src/generated.rs`` | ``KEY``, ``NONCE``, ``DELAY_SECS``, ``VERBOSE``, ``VM_DETECTION`` as Rust constants. |
+| ``src/generated.rs`` | ``KEY``, ``NONCE``, ``DELAY_SECS``, ``VERBOSE``, ``ANALYSIS_DETECTION`` as Rust constants. |
 
 ``stub/build.rs`` creates empty placeholders for ``payload.enc`` and ``padding.bin`` if they are missing, so the stub can be built standalone during development. ``stub/src/generated.rs`` should be committed with placeholder values for the same reason — the crypter overwrites it before each real build.
 

