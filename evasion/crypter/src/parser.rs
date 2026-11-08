@@ -30,9 +30,9 @@ pub struct Args {
     #[arg(short = 'v', long, value_name = "verbose", default_value_t = false)]
     pub verbose: bool,
 
-    // Enable or disable VM detection
-    #[arg(short = 'm', long, value_name = "vm-detection", default_value_t = false)]
-    pub vm_detection: bool,
+    // Enable or disable analysis detection
+    #[arg(short = 'a', long, value_name = "anti-analysis", default_value_t = false)]
+    pub anti_analysis: bool,
 }
 
 pub fn parser() -> Result<Args, String> {

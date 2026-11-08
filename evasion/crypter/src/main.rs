@@ -11,7 +11,7 @@ struct Crypter {
     padding: u64,
     delay: u64,
     verbose: bool,
-    vm_detection: bool,
+    anti_analysis: bool,
     payload: Option<Vec<u8>>,
     key: Option<[u8; 32]>,
     nonce: Option<[u8; 12]>,
@@ -24,7 +24,7 @@ impl Crypter {
         padding: u64,
         delay: u64,
         verbose: bool,
-        vm_detection: bool,
+        anti_analysis: bool,
     ) -> Crypter {
         Crypter {
             target_binary,
@@ -32,7 +32,7 @@ impl Crypter {
             padding,
             delay,
             verbose,
-            vm_detection,
+            anti_analysis,
             payload: None,
             key: None,
             nonce: None,
@@ -85,7 +85,7 @@ impl Crypter {
 
         Ok(Crypter::new(
             target_binary, output, args.padding, args.delay,
-            args.verbose, args.vm_detection,
+            args.verbose, args.anti_analysis,
         ))
     }
 
@@ -155,12 +155,12 @@ impl Crypter {
              pub const NONCE: [u8; 12] = {nonce:?};\n\
              pub const DELAY_SECS: u64 = {delay};\n\
              pub const VERBOSE: bool = {verbose};\n\
-             pub const VM_DETECTION: bool = {vm};\n",
+             pub const ANALYSIS_DETECTION: bool = {anti_analysis};\n",
             key = key,
             nonce = nonce,
             delay = self.delay,
             verbose = self.verbose,
-            vm = self.vm_detection,
+            anti_analysis = self.anti_analysis,
         );
 
         std::fs::write(stub_dir.join("src/generated.rs"), src).map_err(|e| format!("write generated.rs: {}", e))?;

