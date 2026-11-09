@@ -16,7 +16,7 @@ use std::path::PathBuf;
 struct Polymorph {
     output: PathBuf,
     payload: PathBuf,
-}
+}   
 
 impl Polymorph {
     fn new(output: PathBuf, payload: PathBuf) -> Self {
