@@ -39,7 +39,7 @@ A Rust-based PE crypter that encrypts a Windows x64 executable, embeds it into a
 
 ## Detection Results
 
-The generated binary was scanned on VirusTotal: **6 out of 61 security vendors** flagged it.
+The generated binary was scanned on VirusTotal: **3 out of 68 security vendors** flagged it.
 
 ![VirusTotal scan](resources/virus_total_scan.png)
 
