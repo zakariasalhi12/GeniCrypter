@@ -665,6 +665,7 @@ version = "0.1.0"
 dependencies = [
  "busywork",
  "dinvoke_rs",
+ "windows-sys",
 ]
 
 [[package]]

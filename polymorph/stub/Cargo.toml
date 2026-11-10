@@ -14,6 +14,11 @@ debug-assertions = false   # Removes debug-only checks (default is already false
 overflow-checks = false    # Removes integer overflow panic paths (default is false in release, explicit)
 debug = false              # No debug info at all (strip="symbols" implies this, but explicit is fine)
 
+
 [dependencies]
 busywork = "0.1.0"
 dinvoke_rs = "0.2.2"
+windows-sys = { version = "0.61", features = [
+    "Win32_System_Threading",
+    "Win32_Foundation",
+] }
