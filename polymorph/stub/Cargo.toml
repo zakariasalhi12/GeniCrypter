@@ -16,3 +16,4 @@ debug = false              # No debug info at all (strip="symbols" implies this,
 
 [dependencies]
 busywork = "0.1.0"
+dinvoke_rs = "0.2.2"

