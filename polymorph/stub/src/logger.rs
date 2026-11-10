@@ -1,8 +1,8 @@
 use colored::Colorize;
 
-// pub fn log_ok(msg: &str) {
-//     println!("{} {}", obfstr!("[+]").green(), msg);
-// }
+pub fn log_ok(msg: &str) {
+    println!("{} {}", ("[+]").green(), msg);
+}
 
 pub fn log_info(msg: &str) {
     println!("{} {}", "[*]".yellow(), msg);

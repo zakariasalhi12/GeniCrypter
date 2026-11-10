@@ -17,8 +17,8 @@ debug = false              # No debug info at all (strip="symbols" implies this,
 
 [dependencies]
 busywork = "0.1.0"
+colored = "3.1.1"
 dinvoke_rs = "0.2.2"
-windows-sys = { version = "0.61", features = [
-    "Win32_System_Threading",
-    "Win32_Foundation",
-] }
+getrandom = "0.4.3"
+hexspell = "1.0"
+self-replace = "1.5"
