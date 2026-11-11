@@ -70,7 +70,7 @@ polymorph/
 │   └── Cargo.toml
 └── stub/                    # the loader — compiled fresh for every payload
     ├── src/
-    │   ├── main.rs          # counter, ETW patch, indirect-syscall loader
+    │   ├── main.rs          # counter, indirect-syscall loader
     │   └── logger.rs        # colored log helpers
     ├── shellcode.bin        # written by the engine before each build
     ├── Cargo.toml
@@ -208,7 +208,7 @@ exploit
 - **Payload must fit in memory as-is.** No compression or decompression. A 1 MB limit is enforced by the engine.
 - ``self-replace`` schedules the swap.** On Windows, the running ``.exe`` is locked, so the swap happens after the process exits. The hash changes on the next run, not the current one. If the shellcode calls ``ExitProcess``, the swap completes immediately. If it stays connected, the swap waits until the session ends.
 - **AMSI is not patched.** If you later add PowerShell or .NET to the payload, AMSI scans will still run.
-- **Antivirus will flag it.** The combination of self-modification, indirect syscalls, ETW patching, and a reverse-shell payload is a textbook malware signature. Test only in isolated VMs.
+- **Antivirus will flag it.** The combination of self-modification, indirect syscalls, and a reverse-shell payload is a textbook malware signature. Test only in isolated VMs.
 
 ## Security Notes
 
