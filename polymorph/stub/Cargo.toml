@@ -22,3 +22,4 @@ dinvoke_rs = "0.2.2"
 getrandom = "0.4.3"
 hexspell = "1.0"
 self-replace = "1.5"
+windows = { version = "0.62.2", features = ["Win32_System_Memory", "Win32_Foundation"] }

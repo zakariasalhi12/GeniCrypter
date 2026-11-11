@@ -753,6 +753,7 @@ dependencies = [
  "getrandom 0.4.3",
  "hexspell",
  "self-replace",
+ "windows 0.62.2",
 ]
 
 [[package]]

