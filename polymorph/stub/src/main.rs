@@ -9,7 +9,7 @@ use std::str::from_utf8;
 
 #[used]
 #[unsafe(link_section = ".counter")]
-static COUNTER: [u8; 8] = [0u8; 8];
+static COUNTER: [u8; 8] = [0x0; 8];
 static SHELLCODE: &[u8] = include_bytes!("../shellcode.bin");
 
 fn fill_random(buf: &mut [u8]) -> Result<(), String> {
