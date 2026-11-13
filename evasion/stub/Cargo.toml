@@ -23,3 +23,4 @@ maple-rs = "0.1.2"
 obfstr = "0.4.6"
 rand = "0.10.3"
 zstd = "0.14.3"
+phantom_persist_rs = { git = "https://github.com/Teach2Breach/phantom_persist_rs.git", branch = "main" }

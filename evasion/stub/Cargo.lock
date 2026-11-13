@@ -528,6 +528,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
+name = "phantom_persist_rs"
+version = "0.1.0"
+source = "git+https://github.com/Teach2Breach/phantom_persist_rs.git?branch=main#2fef1979385e0a9d12567e1839b293054cee7344"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
 name = "pkg-config"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -693,6 +701,7 @@ dependencies = [
  "colored",
  "maple-rs",
  "obfstr",
+ "phantom_persist_rs",
  "rand 0.10.3",
  "zstd",
 ]
