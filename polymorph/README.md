@@ -55,6 +55,7 @@ engine (polymorph)                      stub (template)
 - Compile-time embedding: shellcode is baked into the binary at link time. No external files, no runtime drops.
 - Self-mutating signature: on every run, ``bump_counter`` overwrites the ``.counter`` PE section with 8 random bytes and swaps the binary via ``self-replace.`` The file hash changes on every execution.
 - Indirect syscalls: ``NtAllocateVirtualMemory``, ``NtProtectVirtualMemory``, and ``NtCreateThreadEx`` are invoked through ``dinvoke_rs``'s ``execute_syscall!`` macro, bypassing user-mode ``ntdll`` hooks.
+- ETW patching: before the shellcode runs, ``patch_etw`` resolves ``EtwEventWrite`` in ``ntdll.dll`` and overwrites its first byte with a single ``RET`` (``0xC3``), silencing all user-mode ETW providers in the process. The page is temporarily flipped to ``PAGE_READWRITE`` with an indirect ``NtProtectVirtualMemory`` call, then restored to its original protection.
 - Thread lifetime wait: ``WaitForSingleObject(thread, INFINITE)`` keeps the process alive exactly as long as the shellcode runs.
 - Optional GUI subsystem: ``#![windows_subsystem = "windows"]`` can be uncommented to hide the console window.
 
@@ -70,7 +71,7 @@ polymorph/
 │   └── Cargo.toml
 └── stub/                    # the loader — compiled fresh for every payload
     ├── src/
-    │   ├── main.rs          # counter, indirect-syscall loader
+    │   ├── main.rs          # counter, ETW patch, indirect-syscall loader
     │   └── logger.rs        # colored log helpers
     ├── shellcode.bin        # written by the engine before each build
     ├── Cargo.toml
@@ -88,6 +89,7 @@ polymorph/
 
 1. ``bump_counter`` — parses its own PE with ``hexspell``, finds the ``.counter`` section, fills it with 8 random bytes from ``getrandom``, writes a patched copy to ``stub.exe.new``, and schedules ``self-replace`` to swap it in after exit.
 2. execute_shellcode:
+    - ``patch_etw`` → resolves ``EtwEventWrite`` in ``ntdll.dll``, makes the page writable, writes ``RET`` (``0xC3``), restores the original protection. User-mode ETW is now silenced for the process.
     - ``NtAllocateVirtualMemory`` → RW buffer.
     - ``memcpy`` shellcode into the buffer.
     - ``NtProtectVirtualMemory`` → RX.
@@ -195,7 +197,8 @@ exploit
 
 | Layer | What it defeats | Limitation |
 |---|---|---|
-| indirect syscalls (``NtAllocateVirtualMemory``, etc.) | User-mode ``ntdll`` hooks | Kernel-mode ETW and callbacks still fire |
+| indirect syscalls (``NtAllocateVirtualMemory``, etc.) | User-mode ``ntdll`` hooks | Kernel-mode ETW and kernel callbacks still fire |
+| ETW patching (``EtwEventWrite`` → ``RET``) | User-mode ETW providers (``.NET``, ``AMSI``-adjacent telemetry, ``Windows Defender`` user-mode events) | Kernel-mode ETW sessions and drivers that emit their own events are unaffected; patching ``ntdll`` is itself a detectable integrity change |
 | W^X allocation (RW → RX) | "RWX page" heuristic | Private executable memory is still visible to memory scanners |
 | ``.counter`` self-mutation | Static file-hash signatures | Behavioral detection (file writes to own exe) fires; ``self-replace`` triggers file-integrity monitoring |
 | Compile-time embedding` | Disk-drop signatures | The payload is visible in the binary's ``.rdata`` |
@@ -207,7 +210,8 @@ exploit
 - **Windows x64 only.** The stub uses ``dinvoke_rs``, Windows NT syscalls, and ``hexspell``'s PE parser. No x86, no Linux, no macOS.
 - **Payload must fit in memory as-is.** No compression or decompression. A 1 MB limit is enforced by the engine.
 - ``self-replace`` schedules the swap.** On Windows, the running ``.exe`` is locked, so the swap happens after the process exits. The hash changes on the next run, not the current one. If the shellcode calls ``ExitProcess``, the swap completes immediately. If it stays connected, the swap waits until the session ends.
-- **AMSI is not patched.** If you later add PowerShell or .NET to the payload, AMSI scans will still run.
+- **AMSI is not patched.** If you later add PowerShell or .NET to the payload, AMSI scans will still run. ETW is patched, but AMSI is a separate interface.
+- **ETW patching only silences user-mode providers.** ``patch_etw`` overwrites ``EtwEventWrite`` in the local ``ntdll.dll``; kernel-mode ETW sessions, threat-intelligence providers, and kernel callbacks still receive events. The one-byte patch also leaves ``ntdll``'s code modified in memory, which memory-integrity scanners can flag.
 - **Antivirus will flag it.** The combination of self-modification, indirect syscalls, and a reverse-shell payload is a textbook malware signature. Test only in isolated VMs.
 
 ## Security Notes

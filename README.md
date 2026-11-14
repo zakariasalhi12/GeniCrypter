@@ -36,6 +36,7 @@ Key points:
 - In-memory execution — no payload written to disk at runtime.
 - Optional execution delay using real CPU/memory work.
 - Optional debugger, VM, and sandbox checks.
+- User-level persistence — self-copy to `%APPDATA%\Microsoft\Windows\Local Permission Handler.exe`, hidden + system attributes, and restart-on-shutdown via `RegisterApplicationRestart` (`phantom_persist_rs`).
 - Optional random padding to change the output size.
 
 Build and run:
@@ -64,6 +65,7 @@ Key points:
 
 - Shellcode embedded at compile time via `include_bytes!`.
 - Self-mutating `.counter` section with `self-replace`.
+- ETW patching — overwrites `EtwEventWrite` in `ntdll.dll` with `RET` to silence user-mode ETW providers.
 - Indirect NT syscalls via `dinvoke_rs`.
 - RW → RX allocation instead of an RWX page.
 - Native thread creation at the shellcode address.

