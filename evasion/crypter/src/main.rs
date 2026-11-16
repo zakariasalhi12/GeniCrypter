@@ -10,7 +10,6 @@ struct Crypter {
     output: PathBuf,
     padding: u64,
     delay: u64,
-    verbose: bool,
     anti_analysis: bool,
     payload: Option<Vec<u8>>,
     key: Option<[u8; 32]>,
@@ -23,7 +22,6 @@ impl Crypter {
         output: PathBuf,
         padding: u64,
         delay: u64,
-        verbose: bool,
         anti_analysis: bool,
     ) -> Crypter {
         Crypter {
@@ -31,7 +29,6 @@ impl Crypter {
             output,
             padding,
             delay,
-            verbose,
             anti_analysis,
             payload: None,
             key: None,
@@ -84,8 +81,7 @@ impl Crypter {
         std::fs::File::create(&output).map_err(|e| format!("Failed to create output file: {}", e))?;
 
         Ok(Crypter::new(
-            target_binary, output, args.padding, args.delay,
-            args.verbose, args.anti_analysis,
+            target_binary, output, args.padding, args.delay, args.anti_analysis,
         ))
     }
 
@@ -154,12 +150,10 @@ impl Crypter {
              pub const KEY: [u8; 32] = {key:?};\n\
              pub const NONCE: [u8; 12] = {nonce:?};\n\
              pub const DELAY_SECS: u64 = {delay};\n\
-             pub const VERBOSE: bool = {verbose};\n\
              pub const ANALYSIS_DETECTION: bool = {anti_analysis};\n",
             key = key,
             nonce = nonce,
             delay = self.delay,
-            verbose = self.verbose,
             anti_analysis = self.anti_analysis,
         );
 

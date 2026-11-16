@@ -80,7 +80,6 @@ evasion/
 ├── src/
 │ ├── main.rs # persistence bootstrap, anti-analysis, decrypt, execute
 │ ├── persistence.rs # self-copy, hidden attributes, Phantom Persistence registration
-│ ├── logger.rs # colored log helpers
 │ └── generated.rs # overwritten by the crypter before every build
 ├── build.rs # creates placeholder payload/padding if missing
 ├── payload.enc # written by the crypter (embedded at compile time)
@@ -92,7 +91,7 @@ evasion/
 
 1. `crypter` reads the target PE and encrypts it with AES-256-GCM.
 2. The ciphertext is zstd-compressed.
-3. `crypter` writes `stub/payload.enc`, `stub/padding.bin`, and `stub/src/generated.rs` (`KEY`, `NONCE`, `DELAY_SECS`, `VERBOSE`, `ANALYSIS_DETECTION`).
+3. `crypter` writes `stub/payload.enc`, `stub/padding.bin`, and `stub/src/generated.rs` (`KEY`, `NONCE`, `DELAY_SECS`, `ANALYSIS_DETECTION`).
 4. `crypter` runs `cargo build --release` inside `stub/`. `include_bytes!` and `mod generated` pick up the real data and constants.
 5. The built `stub.exe` is copied to the user-specified `--output` path.
 6. Intermediate files in `stub/` are removed.
@@ -147,7 +146,6 @@ evasion/
     -o, --output <output-binary>         
     -s, --padding <size-in-mb>           [default: 0]
     -d, --delay <seconds>                [default: 60]
-    -v, --verbose                        
     -a, --anti-analysis                   
     -V, --version                        Print version
 ```
@@ -172,7 +170,7 @@ The crypter creates the following files in **stub/** before compiling it, and re
 |---|---|
 | ``payload.enc`` | zstd-compressed, AES-256-GCM-encrypted target PE. Embedded by ``include_bytes!``. |
 | ``padding.bin`` | Random bytes of size ``--add-size`` MiB. Embedded by ``include_bytes!`` to inflate the binary. |
-| ``src/generated.rs`` | ``KEY``, ``NONCE``, ``DELAY_SECS``, ``VERBOSE``, ``ANALYSIS_DETECTION`` as Rust constants. |
+| ``src/generated.rs`` | ``KEY``, ``NONCE``, ``DELAY_SECS``, ``ANALYSIS_DETECTION`` as Rust constants. |
 
 ``stub/build.rs`` creates empty placeholders for ``payload.enc`` and ``padding.bin`` if they are missing, so the stub can be built standalone during development. ``stub/src/generated.rs`` should be committed with placeholder values for the same reason — the crypter overwrites it before each real build.
 

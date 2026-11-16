@@ -26,10 +26,6 @@ pub struct Args {
     #[arg(short = 'd', long, value_name = "seconds", default_value_t = 60)]
     pub delay: u64,
 
-    // verbose output
-    #[arg(short = 'v', long, value_name = "verbose", default_value_t = false)]
-    pub verbose: bool,
-
     // Enable or disable analysis detection
     #[arg(short = 'a', long, value_name = "anti-analysis", default_value_t = false)]
     pub anti_analysis: bool,

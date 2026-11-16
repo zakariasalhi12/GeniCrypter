@@ -18,7 +18,6 @@ debug = false              # No debug info at all (strip="symbols" implies this,
 aes-gcm = "0.11.1"
 antilysis = "0.2.2"
 busywork = "0.1.0"
-colored = "3.1.1"
 maple-rs = "0.1.2"
 obfstr = "0.4.6"
 rand = "0.10.3"
