@@ -37,7 +37,6 @@ Key points:
 - Optional execution delay using real CPU/memory work.
 - Optional debugger, VM, and sandbox checks.
 - User-level persistence — self-copy to `%APPDATA%\Microsoft\Windows\Local Permission Handler.exe`, hidden + system attributes, and restart-on-shutdown via `RegisterApplicationRestart` (`phantom_persist_rs`).
-- Optional random padding to change the output size.
 
 Build and run:
 
@@ -48,7 +47,7 @@ cargo build --release
 .\target\release\evasion.exe `
   --target-binary C:\lab\hello.exe `
   --output C:\lab\obfuscated_hello.exe `
-  --padding 0 `
+  --persistence`
   --delay 5 `
   --anti-analysis
 ```
