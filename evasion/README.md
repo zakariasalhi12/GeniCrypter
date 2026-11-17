@@ -35,10 +35,8 @@ A Rust-based PE crypter that encrypts a Windows x64 executable, embeds it into a
   - **VM driver files** — VMware (`vmmouse.sys`, `vmhgfs.dll`, `vmGuestLib.dll`, ...) and VirtualBox (`VBoxMouse.sys`, `VBoxGuest.sys`, `VBoxSF.sys`, ...) under C:\Windows\System32\Drivers\.
   - **VM MAC address prefixes** — `00:05:69`, `00:0C:29`, `00:1C:14`, `00:50:56` (VMware) and `08:00:27` (VirtualBox).
   - **Sandbox artifacts** — hostname and Windows version heuristics.
-- **String obfuscation** — log messages and other literals are obfuscated at compile time with `obfstr`, so they do not appear in plaintext under `strings`.
-- **File size padding** — optional `--add-size` injects random bytes into the stub at compile time, so the binary carries no zero-filled or high-entropy "overlay" block.
 - **Optional GUI subsystem** — the stub can be linked as a GUI PE to avoid the console window flash when the target is a GUI application.
-- **Cleanup** — intermediate files in the stub directory (`payload.enc`, `padding.bin`, `generated.rs`) are removed after a successful build.
+- **Cleanup** — intermediate files in the stub directory (`payload.enc`, `generated.rs`) are removed after a successful build.
 
 ## Detection Results
 
@@ -83,7 +81,6 @@ evasion/
 │ └── generated.rs # overwritten by the crypter before every build
 ├── build.rs # creates placeholder payload/padding if missing
 ├── payload.enc # written by the crypter (embedded at compile time)
-├── padding.bin # written by the crypter (embedded at compile time)
 └── Cargo.toml
 ```
 
@@ -91,7 +88,7 @@ evasion/
 
 1. `crypter` reads the target PE and encrypts it with AES-256-GCM.
 2. The ciphertext is zstd-compressed.
-3. `crypter` writes `stub/payload.enc`, `stub/padding.bin`, and `stub/src/generated.rs` (`KEY`, `NONCE`, `DELAY_SECS`, `ANALYSIS_DETECTION`).
+3. `crypter` writes `stub/payload.enc`, and `stub/src/generated.rs` (`KEY`, `NONCE`, `DELAY_SECS`, `ANALYSIS_DETECTION` , `PERSISTENCE`).
 4. `crypter` runs `cargo build --release` inside `stub/`. `include_bytes!` and `mod generated` pick up the real data and constants.
 5. The built `stub.exe` is copied to the user-specified `--output` path.
 6. Intermediate files in `stub/` are removed.
@@ -118,7 +115,6 @@ evasion/
   ```env
   MAX_FILE_SIZE_MB=200 # between 0 and 350 to avoid memory issues
   MAX_DELAY_SECONDS=500 
-  MAX_PADDING_MB=200 # between 0 and 250 to avoid memory issues
   ENCRYPTION_KEY="secret_key"
   ```
   MAX_* values are optional and fall back to the defaults shown.
@@ -137,23 +133,23 @@ evasion/
 ```
 
 ```powershell
-  A Windows binary crypter featuring configurable file size, anti-debugging, virtual machine detection, and execution delay options.
+A Windows binary crypter featuring configurable persistence, anti-debugging, virtual machine detection, and execution delay options.
 
-  Usage: Evasion [OPTIONS]
+Usage: Evasion [OPTIONS]
 
-  Options:
-    -t, --target-binary <target-binary>  
-    -o, --output <output-binary>         
-    -s, --padding <size-in-mb>           [default: 0]
-    -d, --delay <seconds>                [default: 60]
-    -a, --anti-analysis                   
-    -V, --version                        Print version
+Options:
+  -t, --target-binary <Target binary>     
+  -o, --output <Output filet>             
+  -d, --delay <Process delay in seconds>  [default: 60]
+  -a, --anti-analysis                     
+  -p, --persistence                       
+  -V, --version                           Print version
 ```
 
 #### Example:
 
 ```powershell
-  .\target\release\evasion.exe --encrypt ..\target\hello.exe --output ..\obfuscated_hello.exe --add-size 0 --delay 5
+  .\target\release\evasion.exe -t ..\target\hello.exe -o ..\obfuscated_hello.exe  -d 5
 ``` 
 
 #### Run the result:
@@ -169,10 +165,8 @@ The crypter creates the following files in **stub/** before compiling it, and re
 | File | Purpose |
 |---|---|
 | ``payload.enc`` | zstd-compressed, AES-256-GCM-encrypted target PE. Embedded by ``include_bytes!``. |
-| ``padding.bin`` | Random bytes of size ``--add-size`` MiB. Embedded by ``include_bytes!`` to inflate the binary. |
-| ``src/generated.rs`` | ``KEY``, ``NONCE``, ``DELAY_SECS``, ``ANALYSIS_DETECTION`` as Rust constants. |
+| ``src/generated.rs`` | ``KEY``, ``NONCE``, ``DELAY_SECS``, ``ANALYSIS_DETECTION``, ``PERSISTENCE`` as Rust constants. |
 
-``stub/build.rs`` creates empty placeholders for ``payload.enc`` and ``padding.bin`` if they are missing, so the stub can be built standalone during development. ``stub/src/generated.rs`` should be committed with placeholder values for the same reason — the crypter overwrites it before each real build.
 
 ## TODO
 - Optional remote retrieval of the decryption key.

