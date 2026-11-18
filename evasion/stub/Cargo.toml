@@ -9,9 +9,9 @@ panic = "abort"            # Kills the process on panic — no unwinding tables,
 codegen-units = 1          # Single unit — maximum LLVM optimization, harder to reverse
 lto = true                 # Link-Time Optimization — cross-crate inlining, smaller & more opaque
 opt-level = "z"            # Optimize aggressively for size — eliminates dead code, obfuscates flow
-debug-assertions = false   # Removes debug-only checks (default is already false in release, but explicit)
-overflow-checks = false    # Removes integer overflow panic paths (default is false in release, explicit)
-debug = false              # No debug info at all (strip="symbols" implies this, but explicit is fine)
+
+[profile.release.package."*"]
+opt-level = 3
 
 [dependencies]
 aes-gcm = "0.11.1"
