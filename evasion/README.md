@@ -181,4 +181,4 @@ These are planned items, not implemented features.
 
 This project is intended for **educational and authorized security research only**. It demonstrates how PE encryption, in-memory loading, and anti-analysis techniques work under the hood. Do not use it to distribute malware, evade detection on systems you* do not own, or otherwise violate applicable laws or terms of service.
 
-The author is not responsible for any misuse or damage caused by this software. Running in-memory PE loaders may trigger antivirus or EDR alerts on the build and test machines — this is expected behavior, not a bug. Test only in isolated virtual machines that you control.
+The author is not responsible for any misuse or damage caused by this software.
