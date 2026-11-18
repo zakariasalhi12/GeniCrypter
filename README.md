@@ -94,4 +94,4 @@ Both tools target **Windows 10/11 x64** and require:
 
 ## Disclaimer
 
-This project is provided for educational and authorized security research only. The author is not responsible for misuse or damage caused by this software. Running these tools may trigger antivirus or EDR alerts — this is expected behavior, not a bug.
+This project is provided for educational and authorized security research only. The author is not responsible for misuse or damage caused by this software.
