@@ -6,7 +6,7 @@ Two Rust tools for Windows x64 that package a payload into a single self-contain
 |---|---|---|
 | **Evasion** | [`evasion/`](evasion/README.md) | Encrypts a PE executable into a self-contained stub and runs it in memory. |
 | **Polymorph** | [`polymorph/`](polymorph/README.md) | Embeds raw x64 shellcode, executes it through indirect syscalls, and mutates its own file signature. |
-| **obfuscate_pe.ps1** | [`scripts/`](scripts/obfuscate_pe.ps1) | Post-build helper that strips the Rich header and spoofs the PE timestamp of an already-built `.exe`. |
+| **obfuscate_pe.ps1** | [`scripts/`](scripts/obfuscate_pe.ps1) | Post-build helper that strips the Rich header, randomizes the PE timestamp, clears the debug/PDB directory, and fixes the checksum. |
 
 ## Repository Layout
 
@@ -22,7 +22,7 @@ GeniCrypter/
 │   ├── engine/               # build-machine CLI
 │   └── stub/                 # template compiled for each payload
 ├── scripts/
-│   └── obfuscate_pe.ps1      # post-build Rich header/timestamp cleanup
+│   └── obfuscate_pe.ps1      # post-build PE metadata cleanup
 └── resources/                # screenshots used by the docs
 ```
 
@@ -49,7 +49,7 @@ cargo build --release
 .\target\release\evasion.exe `
   --target-binary C:\lab\hello.exe `
   --output C:\lab\obfuscated_hello.exe `
-  --persistence`
+  --persistence `
   --delay 5 `
   --anti-analysis
 ```
@@ -89,12 +89,14 @@ See [`polymorph/README.md`](polymorph/README.md) for the full engine/stub flow, 
 
 ## obfuscate_pe.ps1 — PE Metadata Cleanup
 
-[`scripts/obfuscate_pe.ps1`](scripts/obfuscate_pe.ps1) is a small PowerShell post-build helper for Windows executables. Run it on the final `.exe` produced by Evasion or Polymorph (or any PE) to reduce obvious build fingerprints:
+[`scripts/obfuscate_pe.ps1`](scripts/obfuscate_pe.ps1) is a small PowerShell post-build helper for Windows executables. Run it on the final `.exe` produced by Evasion or Polymorph (or any PE) to reduce obvious build fingerprints. It performs four cleanup passes:
 
 - **Strips the Rich header** — the undocumented block that `link.exe` writes between the DOS stub and the PE header, which leaks toolchain/compiler details. It locates the encrypted `DanS` marker and zeroes the block up to `Rich`, including the key. Skipped cleanly when no Rich header exists (e.g. GNU toolchain or already stripped).
-- **Spoofs `TimeDateStamp`** — overwrites the COFF file header timestamp with a fixed value (`0x62E5C6D0`) instead of the real build time.
+- **Randomizes `TimeDateStamp`** — instead of the real build time, it writes a random date between **2022-01-01** and **now − 1 day** (clamped so the binary never looks future-dated; there is a safety fallback for machines with clocks set before 2022). A different value is picked on every run.
+- **Clears the Debug Directory entry** — zeroes data-directory index 6, which removes the pointer to the CodeView record and therefore the embedded **PDB path/name**. Handles both PE32+ (x64/ARM64) and PE32 (x86) optional headers.
+- **Recomputes the PE checksum** — recalculates the standard 16-bit ones-complement checksum after the edits, so `dumpbin /headers` and AV heuristics don't flag a stale or missing checksum as tampering.
 
-It modifies the file **in place**, so copy the binary first if you want to keep the original. The file must be a valid MZ/PE image, otherwise the script exits with an error.
+It modifies the file **in place**, so copy the binary first if you want to keep the original. The file must be a valid MZ/PE image with a known optional-header magic, otherwise the script exits with an error.
 
 Usage (PowerShell):
 
@@ -107,9 +109,13 @@ Example output:
 
 ```text
 [OK] Rich header stripped (0x80..0x108)
-[OK] TimeDateStamp spoofed to 0x62E5C6D0
+[OK] TimeDateStamp randomized to 0x63A1F2B4 = 2023-06-28 14:33:24 UTC
+[OK] Debug Directory entry cleared (removes PDB path)
+[OK] PE checksum recomputed: 0x0003A7C1
 [OK] PE obfuscation complete: C:\lab\hello.exe
 ```
+
+Each step prints a `[--]` notice instead when it doesn't apply (no Rich header, no debug directory). Because the timestamp is random and the checksum follows it, re-running the script on the same file produces a **new hash every time**.
 
 If PowerShell blocks local scripts, run it in a session with `Set-ExecutionPolicy -Scope Process Bypass`, or invoke it as `powershell -ExecutionPolicy Bypass -File .\scripts\obfuscate_pe.ps1 -Path <file>`.
 
