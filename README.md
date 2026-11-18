@@ -6,7 +6,7 @@ Two Rust tools for Windows x64 that package a payload into a single self-contain
 |---|---|---|
 | **Evasion** | [`evasion/`](evasion/README.md) | Encrypts a PE executable into a self-contained stub and runs it in memory. |
 | **Polymorph** | [`polymorph/`](polymorph/README.md) | Embeds raw x64 shellcode, executes it through indirect syscalls, and mutates its own file signature. |
-| **obfuscate_pe.ps1** | [`scripts/`](scripts/obfuscate_pe.ps1) | Post-build helper that strips the Rich header, randomizes the PE timestamp, clears the debug/PDB directory, and fixes the checksum. |
+| **cleanup_pe.ps1** | [`scripts/`](scripts/cleanup_pe.ps1) | Post-build helper that strips the Rich header, randomizes the PE timestamp, clears the debug/PDB directory, and fixes the checksum. |
 
 ## Repository Layout
 
@@ -22,7 +22,7 @@ GeniCrypter/
 │   ├── engine/               # build-machine CLI
 │   └── stub/                 # template compiled for each payload
 ├── scripts/
-│   └── obfuscate_pe.ps1      # post-build PE metadata cleanup
+│   └── cleanup_pe.ps1      # post-build PE metadata cleanup
 └── resources/                # screenshots used by the docs
 ```
 
@@ -87,9 +87,9 @@ The payload must be **raw x64 shellcode**, not a PE, and approximately **1 MB or
 
 See [`polymorph/README.md`](polymorph/README.md) for the full engine/stub flow, payload details, and limitations.
 
-## obfuscate_pe.ps1 — PE Metadata Cleanup
+## cleanup_pe.ps1 — PE Metadata Cleanup
 
-[`scripts/obfuscate_pe.ps1`](scripts/obfuscate_pe.ps1) is a small PowerShell post-build helper for Windows executables. Run it on the final `.exe` produced by Evasion or Polymorph (or any PE) to reduce obvious build fingerprints. It performs four cleanup passes:
+[`scripts/cleanup_pe.ps1`](scripts/cleanup_pe.ps1) is a small PowerShell post-build helper for Windows executables. Run it on the final `.exe` produced by Evasion or Polymorph (or any PE) to reduce obvious build fingerprints. It performs four cleanup passes:
 
 - **Strips the Rich header** — the undocumented block that `link.exe` writes between the DOS stub and the PE header, which leaks toolchain/compiler details. It locates the encrypted `DanS` marker and zeroes the block up to `Rich`, including the key. Skipped cleanly when no Rich header exists (e.g. GNU toolchain or already stripped).
 - **Randomizes `TimeDateStamp`** — instead of the real build time, it writes a random date between **2022-01-01** and **now − 1 day** (clamped so the binary never looks future-dated; there is a safety fallback for machines with clocks set before 2022). A different value is picked on every run.
@@ -102,7 +102,7 @@ Usage (PowerShell):
 
 ```powershell
 # Run on a built executable (modifies it in place)
-.\GeniCrypter\scripts\obfuscate_pe.ps1 -Path C:\lab\hello.exe
+.\GeniCrypter\scripts\cleanup_pe.ps1 -Path C:\lab\hello.exe
 ```
 
 Example output:
@@ -112,12 +112,12 @@ Example output:
 [OK] TimeDateStamp randomized to 0x63A1F2B4 = 2023-06-28 14:33:24 UTC
 [OK] Debug Directory entry cleared (removes PDB path)
 [OK] PE checksum recomputed: 0x0003A7C1
-[OK] PE obfuscation complete: C:\lab\hello.exe
+[OK] PE cleanup complete: C:\lab\hello.exe
 ```
 
 Each step prints a `[--]` notice instead when it doesn't apply (no Rich header, no debug directory). Because the timestamp is random and the checksum follows it, re-running the script on the same file produces a **new hash every time**.
 
-If PowerShell blocks local scripts, run it in a session with `Set-ExecutionPolicy -Scope Process Bypass`, or invoke it as `powershell -ExecutionPolicy Bypass -File .\scripts\obfuscate_pe.ps1 -Path <file>`.
+If PowerShell blocks local scripts, run it in a session with `Set-ExecutionPolicy -Scope Process Bypass`, or invoke it as `powershell -ExecutionPolicy Bypass -File .\scripts\cleanup_pe.ps1 -Path <file>`.
 
 ## Requirements
 

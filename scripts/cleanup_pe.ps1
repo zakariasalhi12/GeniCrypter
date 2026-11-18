@@ -135,4 +135,4 @@ Write-Host ("[OK] PE checksum recomputed: 0x{0:X8}" -f $checksum)
 
 # --- Write back ---
 [System.IO.File]::WriteAllBytes($Path, $bytes)
-Write-Host "[OK] PE obfuscation complete: $Path"
+Write-Host "[OK] PE cleanup complete: $Path"

