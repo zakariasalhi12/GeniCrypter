@@ -61,5 +61,32 @@ $fakeTs           = [System.BitConverter]::GetBytes([uint32]0x62E5C6D0)
 $fakeTs.CopyTo($bytes, $timeDateStampOff)
 Write-Host "[OK] TimeDateStamp spoofed to 0x62E5C6D0"
 
+# --- 3. Clear Debug Directory entry (Data Directory index 6) ---
+# Removes the pointer to the CodeView record (PDB path).
+# Safe: loader ignores it; real symbols live in an external .pdb anyway.
+$optHdrOff   = $fileHeaderOff + 20
+$optHdrMagic = [System.BitConverter]::ToUInt16($bytes, $optHdrOff)
+
+if ($optHdrMagic -eq 0x20B) {         # PE32+ (x64 / ARM64)
+    $numDataDirOff   = $optHdrOff + 108
+    $dataDirFirstOff = $optHdrOff + 112
+} elseif ($optHdrMagic -eq 0x10B) {   # PE32 (x86)
+    $numDataDirOff   = $optHdrOff + 92
+    $dataDirFirstOff = $optHdrOff + 96
+} else {
+    Write-Error ("Unknown optional header magic 0x{0:X}" -f $optHdrMagic)
+    exit 1
+}
+
+$numDataDir = [System.BitConverter]::ToUInt32($bytes, $numDataDirOff)
+if ($numDataDir -gt 6) {
+    $debugEntryOff = $dataDirFirstOff + (6 * 8)
+    for ($j = 0; $j -lt 8; $j++) { $bytes[$debugEntryOff + $j] = 0 }
+    Write-Host "[OK] Debug Directory entry cleared (removes PDB path)"
+} else {
+    Write-Host "[--] No Debug Directory entry present"
+}
+
+# --- Write back ---
 [System.IO.File]::WriteAllBytes($Path, $bytes)
 Write-Host "[OK] PE obfuscation complete: $Path"
