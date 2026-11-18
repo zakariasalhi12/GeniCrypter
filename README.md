@@ -36,7 +36,7 @@ Key points:
 - In-memory execution — no payload written to disk at runtime.
 - Optional execution delay using real CPU/memory work.
 - Optional debugger, VM, and sandbox checks.
-- User-level persistence — self-copy to `%APPDATA%\Microsoft\Windows\Local Permission Handler.exe`, hidden + system attributes, and restart-on-shutdown via `RegisterApplicationRestart` (`phantom_persist_rs`).
+- Optional user-level persistence — self-copy to `%APPDATA%\Microsoft\Windows\Local Permission Handler.exe`, hidden + system attributes, and restart-on-shutdown via `RegisterApplicationRestart` (`phantom_persist_rs`).
 
 Build and run:
 
