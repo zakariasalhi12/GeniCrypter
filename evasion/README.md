@@ -36,6 +36,7 @@ A Rust-based PE crypter that encrypts a Windows x64 executable, embeds it into a
   - **VM MAC address prefixes** — `00:05:69`, `00:0C:29`, `00:1C:14`, `00:50:56` (VMware) and `08:00:27` (VirtualBox).
   - **Sandbox artifacts** — hostname and Windows version heuristics.
 - **Optional GUI subsystem** — the stub can be linked as a GUI PE to avoid the console window flash when the target is a GUI application.
+- **Automatic output obfuscation** — after the stub is copied to `--output`, the crypter runs [`scripts/obfuscate_pe.ps1`](../scripts/obfuscate_pe.ps1) on it. The script strips the Rich header, randomizes the PE `TimeDateStamp`, clears the debug directory (removing the PDB path), and recomputes the PE checksum. See [`obfuscate_pe`](../README.md#obfuscate_peps1--pe-metadata-cleanup) in the top-level README for details.
 - **Cleanup** — intermediate files in the stub directory (`payload.enc`, `generated.rs`) are removed after a successful build.
 
 ## Detection Results
@@ -58,6 +59,7 @@ The generated binary was scanned on VirusTotal: **3 out of 68 security vendors**
 
   may fail to start. For such targets, set the DLL search path (`SetDllDirectoryW`) or accept that in-memory loading is not appropriate.
 - **The AES key lives in the generated stub source.** It is embedded into the stub binary and can be recovered by a determined reverse engineer. The encryption protects against static inspection, not against a targeted analysis of the stub.
+- **Output obfuscation requires PowerShell and the repo layout.** The crypter runs `scripts/obfuscate_pe.ps1` from the repository root, so the `scripts/` folder must stay next to `evasion/`. It also needs `powershell` on `PATH`; on a machine without it the post-build obfuscation step fails the whole build. Pass a pre-built stub and obfuscate manually if you need to bypass it.
 - **Obfuscation is not applied by default.** The stub is compiled with plain `cargo build --release`. LLVM-pass obfuscation (e.g. `ollvm-rust`, Amice) can be added to `build_stub`, but it is not wired in yet.
 - **Persistence is user-scoped, not system-wide.** The payload is copied to the current user's `%APPDATA%` and registered with `RegisterApplicationRestart`, so it survives logoff/shutdown for that user only. It does not survive a reboot if the process is force-killed, and it does not install a service, scheduled task, or `Run` registry key.
 - **Persistence relies on `phantom_persist_rs`.** The crate depends on undocumented/less-common Windows restart behavior and may be blocked or ignored by some Windows configurations or security products.
@@ -91,7 +93,8 @@ evasion/
 3. `crypter` writes `stub/payload.enc`, and `stub/src/generated.rs` (`KEY`, `NONCE`, `DELAY_SECS`, `ANALYSIS_DETECTION` , `PERSISTENCE`).
 4. `crypter` runs `cargo build --release` inside `stub/`. `include_bytes!` and `mod generated` pick up the real data and constants.
 5. The built `stub.exe` is copied to the user-specified `--output` path.
-6. Intermediate files in `stub/` are removed.
+6. `crypter` invokes `scripts/obfuscate_pe.ps1` (via `powershell -NoProfile -ExecutionPolicy Bypass`) on the output binary to strip the Rich header, randomize the timestamp, clear the debug/PDB directory, and fix the checksum. The script's output is relayed through the crypter log.
+7. If obfuscation fails (script missing, PowerShell error), the build stops with an error. Intermediate files are only cleaned up after it succeeds.
 
 ### Runtime flow (inside the generated stub)
 
