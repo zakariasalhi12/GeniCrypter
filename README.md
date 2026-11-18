@@ -6,7 +6,7 @@ Two Rust tools for Windows x64 that package a payload into a single self-contain
 |---|---|---|
 | **Evasion** | [`evasion/`](evasion/README.md) | Encrypts a PE executable into a self-contained stub and runs it in memory. |
 | **Polymorph** | [`polymorph/`](polymorph/README.md) | Embeds raw x64 shellcode, executes it through indirect syscalls, and mutates its own file signature. |
-
+| **obfuscate_pe.ps1** | [`scripts/`](scripts/obfuscate_pe.ps1) | Post-build helper that strips the Rich header and spoofs the PE timestamp of an already-built `.exe`. |
 
 ## Repository Layout
 
@@ -21,6 +21,8 @@ GeniCrypter/
 │   ├── README.md             # full Polymorph documentation
 │   ├── engine/               # build-machine CLI
 │   └── stub/                 # template compiled for each payload
+├── scripts/
+│   └── obfuscate_pe.ps1      # post-build Rich header/timestamp cleanup
 └── resources/                # screenshots used by the docs
 ```
 
@@ -84,6 +86,32 @@ cargo build --release
 The payload must be **raw x64 shellcode**, not a PE, and approximately **1 MB or smaller**. Use a benign test payload in the lab.
 
 See [`polymorph/README.md`](polymorph/README.md) for the full engine/stub flow, payload details, and limitations.
+
+## obfuscate_pe.ps1 — PE Metadata Cleanup
+
+[`scripts/obfuscate_pe.ps1`](scripts/obfuscate_pe.ps1) is a small PowerShell post-build helper for Windows executables. Run it on the final `.exe` produced by Evasion or Polymorph (or any PE) to reduce obvious build fingerprints:
+
+- **Strips the Rich header** — the undocumented block that `link.exe` writes between the DOS stub and the PE header, which leaks toolchain/compiler details. It locates the encrypted `DanS` marker and zeroes the block up to `Rich`, including the key. Skipped cleanly when no Rich header exists (e.g. GNU toolchain or already stripped).
+- **Spoofs `TimeDateStamp`** — overwrites the COFF file header timestamp with a fixed value (`0x62E5C6D0`) instead of the real build time.
+
+It modifies the file **in place**, so copy the binary first if you want to keep the original. The file must be a valid MZ/PE image, otherwise the script exits with an error.
+
+Usage (PowerShell):
+
+```powershell
+# Run on a built executable (modifies it in place)
+.\GeniCrypter\scripts\obfuscate_pe.ps1 -Path C:\lab\hello.exe
+```
+
+Example output:
+
+```text
+[OK] Rich header stripped (0x80..0x108)
+[OK] TimeDateStamp spoofed to 0x62E5C6D0
+[OK] PE obfuscation complete: C:\lab\hello.exe
+```
+
+If PowerShell blocks local scripts, run it in a session with `Set-ExecutionPolicy -Scope Process Bypass`, or invoke it as `powershell -ExecutionPolicy Bypass -File .\scripts\obfuscate_pe.ps1 -Path <file>`.
 
 ## Requirements
 
