@@ -125,7 +125,7 @@ evasion/
 ## Installation
 
 ```powershell
-  git clone <repo-url> GeniCrypter
+  git clone https://github.com/zakariasalhi12/GeniCrypter.git
   cd GeniCrypter\evasion\crypter
   cargo build --release
 ```
