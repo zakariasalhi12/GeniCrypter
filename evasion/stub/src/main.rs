@@ -21,7 +21,7 @@ pub enum StubError {
     EncryptionFailed,
     DecompressionFailed,
     ExecutionFailed,
-    PersistenceError,
+    PersistenceFailed,
     UnexpectedError,
 }
 

